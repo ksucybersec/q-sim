@@ -5,6 +5,7 @@ from typing import Any, List, Optional
 
 from pydantic import ValidationError
 
+from classical_network.presets.connection_presets import CONFIG_PRESETS
 from data.models.topology.world_model import (
     WorldModal,
     get_all_topologies_from_redis,
@@ -21,6 +22,18 @@ topology_router = APIRouter(
 
 NETWORK_FILE = "network.json"  # Keep the constant
 
+@topology_router.get("/connection_config_presets", status_code=status.HTTP_200_OK)
+async def get_connection_config_presets():
+    """
+    Retrieves all connection configuration presets and returns them as JSON.
+    """
+    preset_json = []
+    for preset_name, preset_config in CONFIG_PRESETS.items():
+        preset_json.append({
+            "preset_name": preset_name,
+            "preset_config": preset_config.to_dict(),
+        })
+    return preset_json
 
 @topology_router.put("/{topology_id}", status_code=status.HTTP_201_CREATED)
 @topology_router.put("/", status_code=status.HTTP_201_CREATED)

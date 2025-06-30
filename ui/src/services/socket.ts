@@ -8,7 +8,8 @@ type CloseHandler = (event: CloseEvent) => void; // Close provides a CloseEvent 
 export enum SocketEvents {
     SimulationEvent = 'simulation_event',
     // Add other specific event names your server might send
-    ServerResponse = 'server_response' // Example based on previous Python code
+    ServerResponse = 'server_response',
+    SimulationSummary = 'simulation_summary'
 }
 
 /**

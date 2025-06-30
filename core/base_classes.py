@@ -55,6 +55,7 @@ class World(Sobject):
 
             while not self.sequential_stop_flag:
                 for network in self.networks:
+                    # print(f"Forwarding at network {network.name}.")
                     network._forward()
                     time.sleep(fps)
             

@@ -1,13 +1,13 @@
+import logging
 from fastapi import APIRouter, HTTPException, status, Body
 from typing import Dict, Any
+
+from openai import BaseModel
 
 from data.models.topology.world_model import get_topology_from_redis
 from server.api.simulation.manager import SimulationManager
 
-simulation_router = APIRouter(
-    prefix="/simulation",
-    tags=["Simulation"]
-)
+simulation_router = APIRouter(prefix="/simulation", tags=["Simulation"])
 
 try:
     manager = SimulationManager.get_instance()
@@ -16,75 +16,80 @@ except Exception as e:
     manager = None
 
 
-@simulation_router.get(
-    '/status/',
-    summary="Get current simulation status"
-)
+class SendMessageRequest(BaseModel):
+    from_node_name: str
+    to_node_name: str
+    message: str
+
+
+@simulation_router.get("/status/", summary="Get current simulation status")
 async def get_simulation_status():
     """
     Returns whether the simulation managed by the SimulationManager is currently running.
     """
     if manager is None:
-         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Simulation Manager not initialized")
-    return {
-        'is_running': manager.is_running
-    }
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Simulation Manager not initialized",
+        )
+    return {"is_running": manager.is_running}
+
 
 @simulation_router.post(
-    '/message/',
+    "/message/",
     status_code=status.HTTP_200_OK,
-    summary="Send a message/command to the running simulation"
+    summary="Send a message/command to the running simulation",
 )
-async def send_simulation_message(
-    message_data: Dict[str, Any] = Body(...)
-):
+async def send_simulation_message(message_data: SendMessageRequest):
     """
     Sends a command (provided as JSON in the request body)
     to the simulation via the SimulationManager.
     Requires the simulation to be running.
     """
     if manager is None:
-         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Simulation Manager not initialized")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Simulation Manager not initialized",
+        )
 
     if not manager.is_running:
         # Use HTTPException for errors - more standard in FastAPI
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Simulation Not Running"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Simulation Not Running"
         )
 
     try:
-        manager.send_message_command(**message_data)
+        manager.send_message_command(**message_data.model_dump())
 
         return {"message": "Message command sent"}
     except TypeError as e:
-         raise HTTPException(
-              status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-              detail=f"Invalid message data format: {e}"
-         )
+        logging.exception("Invalid message data format: ", e)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid message data format: {e}",
+        )
     except Exception as e:
         print(f"Error sending simulation message: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to send message: {str(e)}"
+            detail=f"Failed to send message: {str(e)}",
         )
 
 
-@simulation_router.delete(
-    "/",
-    summary="Stop the currently running simulation"
-)
+@simulation_router.delete("/", summary="Stop the currently running simulation")
 async def stop_simulation():
     """
     Stops the simulation if it is currently running.
     """
     if manager is None:
-         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Simulation Manager not initialized")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Simulation Manager not initialized",
+        )
 
     if not manager.is_running:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Simulation not running"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Simulation not running"
         )
 
     try:
@@ -93,7 +98,7 @@ async def stop_simulation():
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to stop simulation: {str(e)}"
+            detail=f"Failed to stop simulation: {str(e)}",
         )
 
 
@@ -104,11 +109,15 @@ async def stop_simulation():
     summary="Start the simulation using the network file",
     responses={
         status.HTTP_409_CONFLICT: {"description": "Simulation already running"},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Error during simulation start"},
-        status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "Simulation Manager not initialized"}
-    }
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Error during simulation start"
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "description": "Simulation Manager not initialized"
+        },
+    },
 )
-async def execute_simulation(topology_id:str):
+async def execute_simulation(topology_id: str):
     """
     Starts the simulation using the predefined 'network.json' file.
     Returns 201 Created on success.
@@ -117,14 +126,17 @@ async def execute_simulation(topology_id:str):
     Accessible via both GET and POST requests.
     """
     if manager is None:
-         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Simulation Manager not initialized")
-    
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Simulation Manager not initialized",
+        )
+
     world = get_topology_from_redis(topology_id)
 
     if not world:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Topology with ID '{topology_id}' not found."
+            detail=f"Topology with ID '{topology_id}' not found.",
         )
 
     try:
@@ -133,7 +145,7 @@ async def execute_simulation(topology_id:str):
         if not simulation_started:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Simulation already running"
+                detail="Simulation already running",
             )
 
         return simulation_started
@@ -142,5 +154,5 @@ async def execute_simulation(topology_id:str):
         print(f"Error starting simulation: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error starting simulation: {str(e)}"
+            detail=f"Error starting simulation: {str(e)}",
         )

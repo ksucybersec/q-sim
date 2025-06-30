@@ -9,12 +9,59 @@ class ConnectionModal(BaseModel):
         description="Name of the host from which the connection originates"
     )
     to_node: str = Field(description="Name of the host to which the connection ends")
-    bandwidth: int = Field(description="Bandwidth of the connection in Mbps")
-    latency: int = Field(description="Latency of the connection in milliseconds")
     length: float = Field(description="Length of the connection in kilometers")
     loss_per_km: float = Field(description="Loss per kilometer of the connection")
-    noise_model: str = Field(description="Noise model for the connection")
     name: str = Field(description="Name of the connection")
+
+    # Quantum Connection specific fields
+    noise_model: Optional[Literal['none', 'transmutation', 'depolarizing', 'amplitude_damping', 'phase_damping', 'default']] = Field(
+        description="Noise model for the connection",
+        default='none',
+    )
+
+    noise_strength: Optional[float] = Field(
+        default=0.01,
+        description="Strength of the noise applied to the connection (If applicable)",
+        ge=0.0,
+        le=1.0,
+    )
+
+    # Quantum Host specific fields
+    error_rate_threshold: Optional[float] = Field(
+        default=10,
+        description="Error rate threshold for quantum hosts",
+        ge=1,
+        le=100,
+    )
+    qbits: Optional[int] = Field(
+        default=128,
+        description="Number number of qbits the host will generate",
+        ge=16,
+        multiple_of=8,
+        le=1024,
+    )
+
+    # Classical Connection specific fields
+    bandwidth: int = Field(description="Bandwidth of the connection in Mbps")
+    latency: float = Field(description="Latency of the connection in milliseconds")
+    packet_loss_rate: Optional[float] = Field(
+        default=0.1,
+        description="Packet loss rate for classical connections",
+        ge=0,
+        le=1,
+    )
+    packet_error_rate: Optional[float] = Field(
+        default=0.1,
+        description="Packet error rate for classical connections",
+        ge=0,
+        le=1,
+    )
+    mtu: int = Field(description="Maximum Transmission Unit for classical connections", default=1500)
+    connection_config_preset: Optional[str] = Field(
+        default=None,
+        description="Connection configuration preset for quantum hosts",
+        max_length=255,
+    )
 
 
 HOST_TYPES = Literal[
@@ -46,7 +93,6 @@ class HostModal(BaseModel):
 
 class NetworkModal(BaseModel):
     """Network containing hosts and connections"""
-
     name: str = Field(description="Name of the network")
     address: Optional[str] = Field(description="Address of the network. This can be IP/Hostname")
     type: Literal["CLASSICAL_NETWORK", "QUANTUM_NETWORK"]

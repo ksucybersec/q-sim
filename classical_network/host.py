@@ -6,9 +6,10 @@ from classical_network.node import ClassicalNode
 from classical_network.packet import ClassicDataPacket
 from classical_network.router import ClassicalRouter
 from core.base_classes import Node, World, Zone
-from core.enums import NodeType, SimulationEventType
+from core.enums import InfoEventType, NodeType, SimulationEventType
 from core.exceptions import DefaultGatewayNotFound, NotConnectedError
 from core.network import Network
+from utils.mtu_fragmentation import fragment_packet, reassemble_fragments
 
 if TYPE_CHECKING:
     from quantum_network.adapter import QuantumAdapter
@@ -46,16 +47,39 @@ class ClassicalHost(ClassicalNode):
         for node_2, buffer in self.buffers.items():
             while not buffer.empty():
                 packet = buffer.get()
-
                 if packet.to_address == self:
-                    self.recive_packet(packet)
+                    self.receive_packet(packet)
                 else:
-                    self.logger.warn(f"Unexpected packet '{packet}' received from {node_2}")
+                    self.logger.warning(
+                        f"Unexpected packet '{packet}' received from {node_2}"
+                    )
+    def _handle_fragment(self, packet: ClassicDataPacket):
+        if not hasattr(self, 'fragment_buffer'):
+            self.fragment_buffer = {}
+        
+        frag_id = packet.get_header('fragment_id')
+        if frag_id not in self.fragment_buffer:
+            self.fragment_buffer[frag_id] = []
+        
+        self.fragment_buffer[frag_id].append(packet)
+        
+        fragments = self.fragment_buffer[frag_id]
+        self._send_update(SimulationEventType.INFO, data=dict(type=InfoEventType.FRAGMENT_RECEIVED, fragment_id=frag_id, message=f"Fragment {frag_id}/{len(fragments)} fragments received."))
+        if any(not frag.get_header('more_fragments') for frag in fragments):
+            reassembled = reassemble_fragments(fragments)
+            if reassembled:
+                self._send_update(SimulationEventType.INFO, data=dict(type=InfoEventType.FRAGMENT_REASSEMBLED, fragment_id=frag_id, message=f"Fragment {frag_id}/{len(fragments)} fragments reassembled."))
+                del self.fragment_buffer[frag_id]
+                self.receive_data(reassembled.data)
 
-    def recive_packet(self, packet: ClassicDataPacket):
-        self._send_update(SimulationEventType.PACKET_RECEIVED, packet=packet)
+    def receive_packet(self, packet: ClassicDataPacket):
+        self._send_update(SimulationEventType.PACKET_RECEIVED, packet=packet)   
         if packet.type == PacketType.DATA:
-            self.receive_data(packet.data)
+            # Check if packet is fragmented
+            if packet.get_header('fragment_id'):
+                self._handle_fragment(packet)
+            else:
+                self.receive_data(packet.data)
 
     def add_quantum_adapter(self, adapter: QuantumAdapter):
         self.quantum_adapter = adapter
@@ -81,7 +105,7 @@ class ClassicalHost(ClassicalNode):
         else:
             if not self.default_gateway:
                 raise DefaultGatewayNotFound(self)
-            self.logger.debug(f'Sending to default gateway')
+            self.logger.debug(f"Sending to default gateway")
             packet.next_hop = self.default_gateway
 
         conn = self.get_connection(self, packet.next_hop)
@@ -89,8 +113,16 @@ class ClassicalHost(ClassicalNode):
         if not conn:
             raise NotConnectedError(self, packet.next_hop)
 
-        conn.transmit_packet(packet)
-        self._send_update(SimulationEventType.DATA_SENT, data=data, destination=destination_address)
+        if conn.mtu != -1 and packet.size_bytes > conn.mtu:
+            fragments = fragment_packet(packet, conn.mtu)
+            self._send_update(SimulationEventType.INFO, data=dict(type=InfoEventType.PACKET_FRAGMENTED, message=f"Packet fragmented into {len(fragments)} fragments because MTU is {conn.mtu} bytes."))
+            for fragment in fragments:
+                conn.transmit_packet(fragment)
+        else:
+            conn.transmit_packet(packet)
+        self._send_update(
+            SimulationEventType.DATA_SENT, data=data, destination=destination_address
+        )
 
     def receive_data(self, data):
         self._send_update(SimulationEventType.DATA_RECEIVED, data=data)

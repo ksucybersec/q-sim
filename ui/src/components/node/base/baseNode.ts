@@ -11,6 +11,8 @@ export interface SimulatorNodeOptions extends fabric.GroupProps {
     name: string;
     parentNetworkName?: string | null;
     canvas: fabric.Canvas;
+    error_rate_threshold?: number;
+    qbits?: number;
 }
 
 const typeToJsonTypeMap = {
@@ -329,7 +331,7 @@ export class SimulatorNode extends fabric.Group {
             type: typeToJsonTypeMap[this.nodeType],
             "address": this.ip,
             "location": [this.getX(), this.getY()],
-            parentNetworkName: this.parentNetworkName || undefined, // Include parentNetworkName in toExportJson
+            parentNetworkName: this.parentNetworkName || undefined, // Include parentNetworkName in toExportJson,
         }
     }
 
@@ -337,7 +339,7 @@ export class SimulatorNode extends fabric.Group {
     static importFromJSON(data: NodeI, canvas: fabric.Canvas): SimulatorNode | undefined {
         const tType = getJsonToTypeMap(data.type);
         return getNewNode(tType, data.location[0], data.location[1], canvas, {
-            name: data.name
+            name: data.name,
         });;
     }
 

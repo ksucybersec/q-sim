@@ -1,42 +1,46 @@
-import { ScrollArea } from "@radix-ui/react-scroll-area";
-import { useEffect, useState } from "react";
+"use client"
+
+import { ScrollArea } from "@radix-ui/react-scroll-area"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, Info, CheckCircle, Search } from "lucide-react"
-import { WebSocketClient } from "@/services/socket";
-import { convertEventToLog } from "./log-parser";
-import { Input } from "../ui/input";
+import { WebSocketClient } from "@/services/socket"
+import { convertEventToLog } from "./log-parser"
+import { Input } from "../ui/input"
 
 export interface LogI {
-  level: string;
-  time: string;
-  source: string;
-  message: string;
+  level: string
+  time: string
+  source: string
+  message: string
 }
 
 export function SimulationLogsPanel() {
-  
-  const socket = WebSocketClient.getInstance();
-  
+  const socket = WebSocketClient.getInstance()
+
   const [logFilter, setLogFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
-  const [simulationLogs, setSimulationLogs] = useState<LogI[]>(socket.simulationEventLogs.reverse().map(x => convertEventToLog(x)).filter(x => x !== undefined));
-
+  const [simulationLogs, setSimulationLogs] = useState<LogI[]>(
+    socket.simulationEventLogs
+      .reverse()
+      .map((x) => convertEventToLog(x))
+      .filter((x) => x !== undefined),
+  )
 
   useEffect(() => {
     const handleEvent = (event: any) => {
-      const converted = convertEventToLog(event);
-      if (converted)
-        setSimulationLogs(prevLogs => [converted, ...prevLogs]);
-    };
+      const converted = convertEventToLog(event)
+      if (converted) setSimulationLogs((prevLogs) => [converted, ...prevLogs])
+    }
 
-    socket.onMessage('simulation_event', handleEvent);
+    socket.onMessage("simulation_event", handleEvent)
 
     // Clean up the event listener on unmount
     return () => {
-      socket.offMessage('simulation_event', handleEvent);
-    };
-  }, []); // Empty dependency array so this only runs once
+      socket.offMessage("simulation_event", handleEvent)
+    }
+  }, []) // Empty dependency array so this only runs once
 
   // Filter logs based on level and search query
   const filteredLogs = simulationLogs.filter((log) => {
@@ -82,12 +86,12 @@ export function SimulationLogsPanel() {
   }
 
   const clearLogs = () => {
-    setSimulationLogs([]);
-    socket.simulationEventLogs = [];
+    setSimulationLogs([])
+    socket.simulationEventLogs = []
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Simulator Logs</h3>
       </div>
@@ -104,7 +108,7 @@ export function SimulationLogsPanel() {
         </div>
       </div>
 
-      <div className="bg-slate-900 rounded-md border border-slate-700">
+      <div className="bg-slate-900 rounded-md border border-slate-700 flex flex-col flex-1 min-h-0">
         <div className="grid grid-cols-12 gap-2 p-2 border-b border-slate-700 text-xs font-medium text-slate-400">
           <div className="col-span-1">Level</div>
           <div className="col-span-2">Time</div>
@@ -112,7 +116,7 @@ export function SimulationLogsPanel() {
           {/* <div className="col-span-6">Message</div> */}
         </div>
 
-        <ScrollArea className="h-[75vh] overflow-x-auto">
+        <ScrollArea className="flex-1 overflow-x-auto">
           <div className="space-y-1 p-2">
             {filteredLogs.length > 0 ? (
               filteredLogs.map((log, idx) => (

@@ -30,6 +30,11 @@ class LogEntryModel(JsonModel):
     entity_id: Optional[str] = RedisField(index=True, default=None)
     details: Dict[str, Any] = {}
 
+    def to_human_string(self) -> str:
+        """Convert log entry to human-readable string"""
+        details_str = ", ".join(f"{key}: {value}" for key, value in self.details.items()) if self.details else ""
+        return f"{self.timestamp} [{self.level}] {self.component}: {details_str}"
+
     class Meta:
         global_key_prefix = "network-sim"
         model_key_prefix = "log"

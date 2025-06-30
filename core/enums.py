@@ -24,10 +24,23 @@ class NetworkType(enum.Enum):
     CLASSICAL_NETWORK = "classical_network"
 
 class SimulationEventType(enum.Enum):
+    TRANSMISSION_STARTED = "transmission_started"
     PACKET_TRANSMITTED = "packet_transmitted"
     PACKET_RECEIVED = "packet_received"
+    PACKET_LOTS = "packet_lost"
+    PACKET_CORRUPTED = "packet_corrupted"
+    PACKET_DROPPED = "packet_dropped"
     DATA_SENT = "data_sent"
+    INFO = "info"
     DATA_RECEIVED = "data_received"
     PACKET_ROUTED = "packet_routed"
+    ROUTING_ERROR = "routing_error"
+    PACKET_DELIVERED = "packet_delivered"
+    TRANSMISSION_FAILED = "transmission_failed"
     QKD_INITIALIZED = "qkd_initiated"
     CLASSICAL_DATA_RECEIVED = "classical_data_received"
+
+class InfoEventType(enum.Enum):
+    PACKET_FRAGMENTED = "packet_fragmented"
+    FRAGMENT_RECEIVED = "fragment_received"
+    FRAGMENT_REASSEMBLED = "fragment_reassembled"

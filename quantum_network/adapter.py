@@ -5,9 +5,10 @@ import qutip as qt
 from classical_network.connection import ClassicConnection
 from classical_network.enum import PacketType
 from classical_network.packet import ClassicDataPacket
+from classical_network.presets.connection_presets import DEFAULT_PRESET, GIGABIT_ETHERNET
 from classical_network.router import ClassicalRouter
 from core.base_classes import Node, World, Zone
-from core.enums import NodeType, NetworkType, SimulationEventType
+from core.enums import InfoEventType, NodeType, NetworkType, SimulationEventType
 from core.exceptions import (
     DefaultGatewayNotFound,
     NotConnectedError,
@@ -21,6 +22,7 @@ from core.network import Network
 # from quantum_network.channel import QuantumChannel
 from quantum_network.host import QuantumHost
 from quantum_network.packet import QKDTransmissionPacket
+from utils.mtu_fragmentation import fragment_packet
 from utils.simple_encryption import simple_xor_decrypt, simple_xor_encrypt
 
 # from quantum_network.node import QuantumNode
@@ -63,11 +65,11 @@ class QuantumAdapter(Node):
 
         self.paired_adapter = paired_adapter  # Reference to the paired adapter
         if paired_adapter:
+            # TODO: Add connection config
             connection = ClassicConnection(
                 self.local_classical_router,
                 self.paired_adapter.local_classical_router,
-                10,
-                10,
+                DEFAULT_PRESET,
                 name="QC_Router_Connection",
             )
             self.local_classical_router.add_connection(connection)
@@ -209,14 +211,32 @@ class QuantumAdapter(Node):
 
     def forward_packet(self, packet: ClassicDataPacket, to):
         packet.append_hop(self.local_classical_router)
+        # TODO: check why I didn't used router's transmit function instead of re-writing the logic here again.
         direct_connection = self.local_classical_router.get_connection(
             self.local_classical_router, to
         )
-        #  self.paired_adapter.local_classical_router
 
         if direct_connection:
             packet.next_hop = packet.to_address
             direct_connection.transmit_packet(packet)
+            
+            # if (
+            #     direct_connection.mtu != -1
+            #     and packet.size_bytes > direct_connection.mtu
+            # ):
+            #     print("Packet size is greater than MTU-------------")
+            #     fragments = fragment_packet(packet, direct_connection.mtu)
+            #     self._send_update(
+            #         SimulationEventType.INFO,
+            #         data=dict(
+            #             type=InfoEventType.PACKET_FRAGMENTED,
+            #             message=f"Packet fragmented into {len(fragments)} fragments because MTU is {direct_connection.mtu} bytes.",
+            #         ),
+            #     )
+            #     for fragment in fragments:
+            #         direct_connection.transmit_packet(fragment)
+            # else:
+            #     direct_connection.transmit_packet(packet)
             return
         
         shortest_path = self.local_classical_router.default_gateway.get_path(self.local_classical_router, packet.to_address)
@@ -232,7 +252,14 @@ class QuantumAdapter(Node):
         if not next_connection:
             raise NotConnectedError(self.local_classical_router, next_hop)
         
-        next_connection.transmit_packet(packet)
+        if next_connection.mtu != -1 and packet.size_bytes > next_connection.mtu:
+            print('Packet size is greater than MTU-------------')
+            fragments = fragment_packet(packet, next_connection.mtu)
+            self._send_update(SimulationEventType.INFO, data=dict(type=InfoEventType.PACKET_FRAGMENTED, message=f"Packet fragmented into {len(fragments)} fragments because MTU is {next_connection.mtu} bytes."))
+            for fragment in fragments:
+                next_connection.transmit_packet(fragment)
+        else:
+            next_connection.transmit_packet(packet)
 
     def __name__(self):
         return f"QuantumAdapter - '{self.name}'"

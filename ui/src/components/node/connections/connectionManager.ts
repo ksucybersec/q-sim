@@ -1,7 +1,7 @@
 import { ConnectionAlreadyExists } from "../../../helpers/errors/connectionError";
 import { SimulatorNode } from "../base/baseNode";
 import * as fabric from 'fabric';
-import { SimulatorConnection } from "./line";
+import { LineMetaData, SimulatorConnection } from "./line";
 import { NetworkManager } from "../network/networkManager";
 import { getLogger } from "../../../helpers/simLogger";
 import { getNodeFamily } from "../base/enums";
@@ -34,6 +34,17 @@ export class ConnectionManager {
 
     private getLineId(...nodes: SimulatorNode[]) {
         return nodes.map(x => x.name).sort((a, b) => a > b ? 1 : -1).join('__')
+    }
+
+    updateMetaData(from: SimulatorNode, to: SimulatorNode, metaData: Partial<LineMetaData>) {
+        const lineId = this.getLineId(from, to);
+        if (!this.connectionStore.has(lineId)) {
+            this.logger.error('Connection does not exist between', from.name, 'and', to.name);
+            return;
+        }
+
+        const line = this.connectionStore.get(lineId) as SimulatorConnection;
+        line.updateMetaData(metaData);
     }
 
     updateConnection(from: SimulatorNode, currentMousePosition: { x: number, y: number }, instantDelete = false) {

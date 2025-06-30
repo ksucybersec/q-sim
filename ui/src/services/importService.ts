@@ -107,6 +107,20 @@ function createNetworkFromData(networkData: NetworkI, networkCanvas: fabric.Canv
             }
 
             connectionManager.updateConnection(from, { x: to.getX(), y: to.getY() });
+
+            connectionManager.updateMetaData(from, to, {
+                lossPerKm: conn.loss_per_km,
+                noise_model: conn.noise_model,
+                noise_strength: conn.noise_strength,
+                error_rate_threshold: conn.error_rate_threshold,
+                qbits: conn.qbits,
+                bandwidth: conn.bandwidth,
+                latency: conn.latency,
+                packet_loss_rate: conn.packet_loss_rate,
+                packet_error_rate: conn.packet_error_rate,
+                mtu: conn.mtu,
+                connection_config_preset: conn.connection_config_preset,
+            });
         })
         networkCanvas.requestRenderAll();
         return hostInfo;

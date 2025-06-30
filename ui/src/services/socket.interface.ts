@@ -18,3 +18,9 @@ export interface TransmiTPacketI {
     destination_address: string
   }
   
+  export interface RealtimeLogSummaryI {
+    summary_text: string[]
+    cited_log_entries: Object[]
+    error_message: string
+    thought_process: string
+  }

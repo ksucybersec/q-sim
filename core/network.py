@@ -45,6 +45,7 @@ class Network(Sobject):
 
     def _forward(self):
         for node in self.nodes:
+            # print(f"Forwarding at node {node.name}.")
             node.forward()
 
     def simulation_loop(self, fps):

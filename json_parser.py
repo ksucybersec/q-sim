@@ -1,7 +1,9 @@
 import json
 from typing import Dict, Union
+from classical_network.config.connection_config import ConnectionConfig
 from classical_network.connection import ClassicConnection
 from classical_network.host import ClassicalHost
+from classical_network.presets.connection_presets import DEFAULT_PRESET
 from classical_network.router import ClassicalRouter
 from core.base_classes import World, Zone
 from core.enums import NetworkType, ZoneType
@@ -77,7 +79,6 @@ def parse_json_and_build_network(json_data:Union[str, Dict], on_update_func=None
                         name=host_data['name']
                     )
                 elif host_data['type'] == "QuantumHost":
-                    # Placeholder for send_classical_fn – see note below
                     host = QuantumHost(
                         address=host_data['address'],
                         location=tuple(host_data['location']),
@@ -113,11 +114,18 @@ def parse_json_and_build_network(json_data:Union[str, Dict], on_update_func=None
             network = networks[network_data['name']]
             if network.network_type == NetworkType.CLASSICAL_NETWORK:
                 for connection_data in network_data.get('connections', []):
+                    conn_config = ConnectionConfig(
+                        bandwidth=connection_data['bandwidth'],
+                        latency=connection_data['latency'],
+                        packet_loss_rate=connection_data.get('packet_loss_rate', 0.0),
+                        packet_error_rate=connection_data.get('packet_error_rate', 0.0),
+                        mtu=connection_data.get('mtu', 1500),
+                    )
+
                     connection = ClassicConnection(
                         node_1=hosts[connection_data['from_node']],
                         node_2=hosts[connection_data['to_node']],
-                        bandwidth=connection_data['bandwidth'],
-                        latency=connection_data['latency'],
+                        config=conn_config,
                         name=connection_data['name']
                     )
                     hosts[connection_data['from_node']].add_connection(connection)
@@ -125,13 +133,17 @@ def parse_json_and_build_network(json_data:Union[str, Dict], on_update_func=None
 
             elif network.network_type == NetworkType.QUANTUM_NETWORK:
                 for connection_data in network_data.get('connections', []):
+                    print(f"Connection data: {connection_data}")
                     connection = QuantumChannel(
                         node_1=hosts[connection_data['from_node']],
                         node_2=hosts[connection_data['to_node']],
                         length=connection_data['length'],
                         loss_per_km=connection_data['loss_per_km'],
-                        noise_model=connection_data['noise_model'],
-                        name=connection_data['name']
+                        noise_model= connection_data.get('noise_model', 'none'),
+                        name=connection_data['name'],
+                        noise_strength=connection_data.get('noise_strength', 0.01),
+                        error_rate_threshold=connection_data.get('error_rate_threshold', 10.0),
+                        num_bits=connection_data.get('qbits', 16)
                     )
                     hosts[connection_data['from_node']].add_quantum_channel(connection)
                     hosts[connection_data['to_node']].add_quantum_channel(connection)
@@ -171,8 +183,7 @@ def parse_json_and_build_network(json_data:Union[str, Dict], on_update_func=None
             adapter_network1_connection = ClassicConnection(
                 c_host,
                 adapter.local_classical_router,
-                10,
-                10,
+                DEFAULT_PRESET,
                 name=f"{c_host} {adapter} Connection",
             )
             adapter.local_classical_router.add_connection(adapter_network1_connection)

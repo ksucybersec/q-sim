@@ -76,7 +76,7 @@ export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, si
             return;
           }
           importFromJSON(savedTopology, canvas);
-          onFirstNodeAdded();
+          onFirstNodeAdded(canvas);
         }
       } catch (e) {
         toast("Topology not found!", {
@@ -141,10 +141,10 @@ export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, si
     console.log(event)
   }
 
-  const onFirstNodeAdded = () => {
-    ConnectionManager.getInstance(editor?.canvas);
-    KeyboardListener.getInstance(editor?.canvas);
-    NetworkManager.getInstance(editor?.canvas);
+  const onFirstNodeAdded = (canvas?: fabric.Canvas) => {
+    ConnectionManager.getInstance(editor?.canvas || canvas);
+    KeyboardListener.getInstance(editor?.canvas || canvas);
+    NetworkManager.getInstance(editor?.canvas || canvas);
     // api.startAutoUpdateNetworkTopology();
   };
 

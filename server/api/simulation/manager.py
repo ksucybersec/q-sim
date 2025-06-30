@@ -2,13 +2,18 @@ import asyncio
 from datetime import datetime
 from pprint import pprint
 import threading
-from typing import Optional, Dict, Any
+import time
+from typing import List, Optional, Dict, Any
 import traceback
 
+from ai_agent.src.agents.base.enums import AgentTaskType
+from ai_agent.src.agents.log_summarization.structures import RealtimeLogSummaryInput
+from ai_agent.src.consts.agent_type import AgentType
+from ai_agent.src.orchestration.coordinator import Coordinator
 from core.base_classes import World
 from core.event import Event
 from data.embedding.embedding_util import EmbeddingUtil
-from data.models.simulation.log_model import add_log_entry
+from data.models.simulation.log_model import LogEntryModel, add_log_entry
 from data.models.simulation.simulation_model import (
     SimulationModal,
     SimulationStatus,
@@ -23,6 +28,11 @@ from server.socket_server.socket_server import ConnectionManager
 class SimulationManager:
     _instance: Optional["SimulationManager"] = None
     simulation_world: World = None
+    logs_to_summarize :List[LogEntryModel]= []
+    last_summarized_on: int = None
+    agent_coordinator = Coordinator()
+    current_log_summary: List[str] = []
+    socket_conn: ConnectionManager = None
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -110,6 +120,48 @@ class SimulationManager:
             }
         )
         self.embedding_util.embed_and_store_log(log_entry)
+        self.logs_to_summarize.append(log_entry)
+
+    def _summarize_delta_logs(self) -> None:
+        SUMMARIZE_EVERY_SECONDS = 2
+
+        async def _handle_summary_result(summary_future: asyncio.Future[Optional[Dict[str, Any]]]) -> None:
+            if summary_future.done():
+                summary_result = summary_future.result()
+                self.last_summarized_on = time.time()
+                if summary_result is not None:
+                    new_summary = summary_result['summary_text']
+                    if len(new_summary) == 1:
+                        self.current_log_summary.append(new_summary[0])
+                    else:
+                        self.current_log_summary = new_summary
+                    summary_result['summary_text'] = self.current_log_summary
+                    self.emit_event("simulation_summary", summary_result)
+
+        if (self.last_summarized_on is None or time.time() - self.last_summarized_on >= SUMMARIZE_EVERY_SECONDS) and self.logs_to_summarize:
+            logs_to_summarize = self.logs_to_summarize.copy()
+            self.logs_to_summarize.clear()
+
+            agent_args = RealtimeLogSummaryInput(
+                simulation_id=self.simulation_data.pk,
+                previous_summary=self.current_log_summary,
+                new_logs=[l.to_human_string() for l in logs_to_summarize],
+                conversation_id=self.simulation_data.pk,
+                optional_instructions=None
+            )
+
+            coro_to_run = self.agent_coordinator._run_agent_task(AgentType.LOG_SUMMARIZER, {
+                'task_id': AgentTaskType.REALTIME_LOG_SUMMARY,
+                'input_data': agent_args
+            })
+            
+            # Schedule the coroutine on the main event loop from another thread
+            def schedule_task():
+                # Schedule the task without blocking
+                task = asyncio.create_task(coro_to_run)
+                # task.add_done_callback(_handle_summary_result)
+                task.add_done_callback(lambda fut: asyncio.create_task(_handle_summary_result(fut)))
+            self.main_event_loop.call_soon_threadsafe(schedule_task)
 
     def _run_simulation(self, topology_data: WorldModal) -> None:
         """
@@ -131,12 +183,14 @@ class SimulationManager:
                     update_simulation_status(
                         self.simulation_data.pk, SimulationStatus.RUNNING
                     )
+
                     self.simulation_world = simulate_from_json(
                         topology_data.model_dump(), self.on_update
                     )
 
                     while self.simulation_world.is_running:
-                        time.sleep(5)
+                        time.sleep(2)
+                        self._summarize_delta_logs()
 
                     self.emit_event(
                         "simulation_completed",
@@ -166,7 +220,7 @@ class SimulationManager:
             self._handle_error(e)
 
     def send_message_command(
-        self, from_node_name: str, to_node_name: str, message: str
+        self, from_node_name: str, to_node_name: str, message: str, **kwargs
     ):
         from_node = to_node = None
         for network in self.simulation_world.networks:
@@ -179,13 +233,11 @@ class SimulationManager:
                     continue
 
         if not (from_node and to_node):
-            print(from_node, to_node)
             self.emit_event(
                 "simulation_error", {"error": "Nodes not found for sending message"}
             )
             return
 
-        print("Send Message B/W ", from_node, " And ", to_node)
 
         from_node.send_data(message, to_node)
 
@@ -248,10 +300,6 @@ class SimulationManager:
 
         coro_to_run = self.socket_conn.broadcast(dict(event=event, data=data))
         future = asyncio.run_coroutine_threadsafe(coro_to_run, self.main_event_loop)
-
-        print(
-            f"[{threading.current_thread().name}] Submitted broadcast for event '{event}' to main loop."
-        )
 
     def _handle_error(self, error: Exception) -> None:
         """

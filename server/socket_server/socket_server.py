@@ -3,6 +3,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from typing import List, Dict, Any
 from utils.singleton import singleton
 
+
 @singleton
 class ConnectionManager:
     def __init__(self):
@@ -26,15 +27,13 @@ class ConnectionManager:
         try:
             if isinstance(message, str):
                 await websocket.send_text(message)
-            else: # Assume JSON serializable dict/list etc.
+            else:  # Assume JSON serializable dict/list etc.
                 await websocket.send_json(message)
         except Exception as e:
             print(f"Error sending personal message to {websocket.client}: {e}")
 
-
     async def broadcast(self, message: Any):
         """Sends a message (text or json) to all active connections."""
-        print(f"Broadcasting message: {message}")
         # Create tasks for sending messages concurrently
         tasks = []
         disconnected_clients = []
@@ -42,13 +41,16 @@ class ConnectionManager:
         for connection in self.active_connections:
             try:
                 if isinstance(message, str):
-                     tasks.append(connection.send_text(message))
+                    tasks.append(connection.send_text(message))
                 else:
-                     tasks.append(connection.send_json(message))
+                    with open('socket.log', 'a') as f:
+                        import json
+                        f.write(json.dumps(message)+'\n')
+                    tasks.append(connection.send_json(message))
             except Exception as e:
-                 # Handle immediate error (less likely here, more likely during await gather)
-                 print(f"Error preparing broadcast for {connection.client}: {e}")
-                 disconnected_clients.append(connection) # Mark for removal
+                # Handle immediate error (less likely here, more likely during await gather)
+                print(f"Error preparing broadcast for {connection.client}: {e}")
+                disconnected_clients.append(connection)  # Mark for removal
 
         # Execute all send tasks concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -56,13 +58,14 @@ class ConnectionManager:
         # Check results for exceptions (indicating failed sends/disconnects)
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                connection = self.active_connections[i] # Find corresponding connection
+                connection = self.active_connections[i]  # Find corresponding connection
                 print(f"Error broadcasting to {connection.client}: {result}")
                 disconnected_clients.append(connection)
 
         # Remove clients that failed or disconnected during broadcast
-        for client in set(disconnected_clients): # Use set to avoid duplicates
-             self.disconnect(client)
+        for client in set(disconnected_clients):  # Use set to avoid duplicates
+            self.disconnect(client)
+
 
 manager = ConnectionManager()
 
@@ -81,9 +84,8 @@ async def websocket_endpoint(websocket: WebSocket):
             print(f"Message received from {websocket.client}: {data}")
 
             # TODO: remove in future, right now FE is not sending anything
-            response_data = {'status': 'received', 'original_data': data}
+            response_data = {"status": "received", "original_data": data}
             await manager.send_personal_message(response_data, websocket)
-
 
     except WebSocketDisconnect:
         print(f"WebSocketDisconnect detected for {websocket.client}")

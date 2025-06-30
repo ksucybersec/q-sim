@@ -6,7 +6,7 @@ import { ServerSimulationStatus } from "./api.interface";
 import { ExportDataI } from "./export.interface";
 import { ChatRequestI } from "@/components/ai-agents/message.interface";
 import simulationState from "@/helpers/utils/simulationState";
-import { StartSimulationResponse } from "./apiResponse.interface";
+import { ConnectionConfigPreset, StartSimulationResponse } from "./apiResponse.interface";
 
 // Blank for current host
 const SERVER_HOST = '/api'
@@ -89,6 +89,18 @@ const api = {
             simulationState.setWorldId(topologyID);
             return await response.json() as ExportDataI
         } catch (e) {
+            return null
+        }
+    },
+    getConnectionPresets: async (): Promise<(ConnectionConfigPreset[] | null)> => {
+        const response = await makeFetchCall(SERVER_HOST + `/topology/connection_config_presets`, 'GET')
+        if(response.status != 200) {
+            throw new Error('Error in fetching connection presets')
+        }
+        try {
+            return await response.json()
+        } catch (e) {
+            logger.error(`Error in fetching connection presets`, e)
             return null
         }
     },

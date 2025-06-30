@@ -33,12 +33,19 @@ export interface HostI extends NodeI {};
 export interface ConnectionI {
     from_node: string
     to_node?: string
-    bandwidth: number
-    latency: number
     length: number
     loss_per_km: number
     noise_model: string
+    noise_strength: number
     name: string
+    error_rate_threshold?: number
+    qbits?: number
+    bandwidth: number
+    latency: number
+    packet_loss_rate?: number;
+    packet_error_rate?: number;
+    mtu?: number;
+    connection_config_preset?: string;
 }
 
 export interface AdapterI extends NodeI  {

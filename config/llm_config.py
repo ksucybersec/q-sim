@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, SecretStr
 class LLMConfig(BaseModel):
     provider: str = "openai"
     model: str = "gpt-4"
+    lite_model: Optional[str] = None
     api_key: SecretStr
     base_url: str = "https://api.openai.com/v1"
     timeout: int = 60

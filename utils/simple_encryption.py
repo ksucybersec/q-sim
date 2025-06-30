@@ -9,7 +9,10 @@ def simple_xor_encrypt(text, binary_key):
         char_code = ord(char)
         if key_bit == 1:
             char_code ^= 8  # XOR with 1000 in binary to flip 4th bit
-        
+            
+        # Ensure the result stays within byte range
+        char_code &= 0xFF  # Keep only the lower 8 bits
+
         encrypted.append(char_code)
     
     return encrypted

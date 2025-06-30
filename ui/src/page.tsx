@@ -17,17 +17,23 @@ import { ExerciseI } from "./components/labs/exercise /exercise"
 import { EXERCISES } from "./components/labs/exercise "
 import { ConnectionManager } from "./components/node/connections/connectionManager"
 import { AIAgentsModal } from "./components/ai-agents/ai-agents-modal"
-import { networkStorage } from "./services/storage"
 import simulationState from "./helpers/utils/simulationState"
+import { SimulatorNode } from "./components/node/base/baseNode"
+import { RealtimeLogSummary } from "./components/metrics/realtime-log-summary"
+import { ClassicalHost } from "./components/node/classical/classicalHost"
+import { MessagingPanel } from "./components/metrics/messaging-panel"
+
+type TabIDs = 'logs' | 'details' | 'messages' | 'json-view' | string
 
 export default function QuantumNetworkSimulator() {
-  const [selectedNode, setSelectedNode] = useState(null)
+  const [selectedNode, setSelectedNode] = useState<SimulatorNode | null>(null)
   const [isSimulationRunning, setIsSimulationRunning] = useState(false)
   const [simulationSpeed, setSimulationSpeed] = useState(1)
   const [currentTime, setCurrentTime] = useState(0)
   const [simulationStateUpdateCount, setSimulationStateUpdateCount] = useState(0)
   const [activeLabObject, setActiveLabObject] = useState<ExerciseI | null>(null)
   const [activeMessages, setActiveMessages] = useState<{ id: string; source: string; target: string; content: any; protocol: string; startTime: number; duration: number }[]>([])
+  const [activeTab, setActiveTab] = useState<TabIDs>("logs")
   // const [activeTopologyID, setActiveTopologyID] = useState<string | null>(null)
 
   // Lab-related state
@@ -41,16 +47,7 @@ export default function QuantumNetworkSimulator() {
   // Reference to the NetworkCanvas component
   const networkCanvasRef = useRef(null)
 
-  // useEffect(() => {
-  //   setTimeout(async () => {
-  //     const queryParams = new URLSearchParams(window.location.search);
-  //     const lastOpenedTopologyID = queryParams.get("topologyID") || await networkStorage.getLastOpenedTopologyID();
-
-  //     if (lastOpenedTopologyID) {
-  //       simulationState.setWorldId(lastOpenedTopologyID);
-  //     }
-  //   })
-  // })
+  const [isLogSummaryMinimized, setIsLogSummaryMinimized] = useState(false)
 
   useEffect(() => {
     setTimeout(() => {
@@ -77,6 +74,20 @@ export default function QuantumNetworkSimulator() {
     return () => clearInterval(interval)
   }, [isSimulationRunning, simulationSpeed])
 
+  // Clean up completed messages
+  useEffect(() => {
+    if (activeMessages.length === 0) return
+
+    const newActiveMessages = activeMessages.filter((msg) => {
+      const progress = (currentTime - msg.startTime) / msg.duration
+      return progress < 1
+    })
+
+    if (newActiveMessages.length !== activeMessages.length) {
+      setActiveMessages(newActiveMessages)
+    }
+  }, [currentTime, activeMessages])
+
   // Handle sending a message
   const handleSendMessage = async (source: string, target: string, content: string, protocol: string) => {
     const isSent = await api.sendMessageCommand(source, target, content);
@@ -94,6 +105,19 @@ export default function QuantumNetworkSimulator() {
     triggerLabCheck();
   }
 
+  const onSelectedNodeChanged = (node: SimulatorNode) => {
+    setSelectedNode(node)
+    setActiveTab('logs')
+  }
+
+  useEffect(() => {
+    if (activeTab === 'messages' && !(selectedNode instanceof ClassicalHost)) {
+      setActiveTab('logs');
+    } else if (selectedNode instanceof ClassicalHost) {
+      setActiveTab('messages');
+    }
+  }, [selectedNode]);
+
   const triggerLabCheck = () => {
     setActiveLab((currentActiveLab) => {
       if (!currentActiveLab) return currentActiveLab;
@@ -103,20 +127,6 @@ export default function QuantumNetworkSimulator() {
       return currentActiveLab;
     });
   }
-
-  // Clean up completed messages
-  useEffect(() => {
-    if (activeMessages.length === 0) return
-
-    const newActiveMessages = activeMessages.filter((msg) => {
-      const progress = (currentTime - msg.startTime) / msg.duration
-      return progress < 1
-    })
-
-    if (newActiveMessages.length !== activeMessages.length) {
-      setActiveMessages(newActiveMessages)
-    }
-  }, [currentTime, activeMessages])
 
   const registerConnectionCallback = () => {
     try {
@@ -213,6 +223,19 @@ export default function QuantumNetworkSimulator() {
     }
   }
 
+
+  const updateNodeProperties = (properties: Partial<SimulatorNode>) => {
+    if (!selectedNode) { console.warn("No node selected to update properties"); return }
+
+    Object.keys(properties).forEach((key) => {
+      if (key in selectedNode) {
+        (selectedNode as any)[key] = (properties as any)[key];
+      } else {
+        console.warn(`Property ${key} does not exist on selected node`);
+      }
+    })
+  }
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50">
       {/* Left Sidebar */}
@@ -235,9 +258,7 @@ export default function QuantumNetworkSimulator() {
           <div className="flex-1 relative overflow-hidden">
             <NetworkCanvas
               ref={networkCanvasRef}
-              onNodeSelect={(node) => {
-                setSelectedNode(node)
-              }}
+              onNodeSelect={onSelectedNodeChanged}
               isSimulationRunning={isSimulationRunning}
               simulationTime={currentTime}
               activeMessages={activeMessages}
@@ -263,30 +284,53 @@ export default function QuantumNetworkSimulator() {
           </div>
 
           {/* Right Panel - Contextual Information */}
-          <div className="w-96 border-l border-slate-700 bg-slate-800 overflow-y-auto">
-            <Tabs defaultValue="logs" className="w-full">
-              <TabsList className="w-full grid grid-cols-3">
-                <TabsTrigger value="logs">Logs</TabsTrigger>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="json-view">JSON View</TabsTrigger>
-              </TabsList>
-              <TabsContent value="logs" className="p-4">
-                <SimulationLogsPanel />
-              </TabsContent>
-              <TabsContent value="details" className="p-4">
-                <NodeDetailPanel
-                  selectedNode={selectedNode}
-                  onSendMessage={handleSendMessage}
-                  isSimulationRunning={isSimulationRunning}
-                />
-              </TabsContent>
-              {/* <TabsContent value="quantum" className="p-4">
-                <QuantumStateViewer selectedNode={selectedNode} />
-              </TabsContent> */}
-              <TabsContent value="json-view" className="p-4">
-                <JSONFormatViewer />
-              </TabsContent>
-            </Tabs>
+          <div className="w-96 border-l border-slate-700 bg-slate-800 flex flex-col">
+
+
+            {/* Always visible log summary widget */}
+            {isSimulationRunning ?
+              <RealtimeLogSummary isSimulationRunning={isSimulationRunning} onMinimizedChange={setIsLogSummaryMinimized} /> : null}
+
+            <div
+              className={`overflow-y-auto transition-all duration-300 ${isSimulationRunning && !isLogSummaryMinimized ? "flex-1" : "flex-1"
+                }`}
+            >
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
+                <TabsList className="w-full grid grid-cols-4">
+                  {selectedNode instanceof ClassicalHost ? <TabsTrigger value="messages">Messages</TabsTrigger> : null}
+                  <TabsTrigger value="logs">Logs</TabsTrigger>
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="json-view">JSON View</TabsTrigger>
+                </TabsList>
+                <div
+                  className={`transition-all duration-300 ${isSimulationRunning && !isLogSummaryMinimized ? "h-[calc(100vh-280px)]" : isSimulationRunning ? "h-[calc(100vh-180px)]" : "h-[calc(100vh-80px)]"
+                    }`}
+                >
+
+                  <TabsContent value="messages" className="p-4 h-full overflow-y-auto">
+                    <MessagingPanel
+                      selectedNode={selectedNode}
+                      onSendMessage={handleSendMessage}
+                      isSimulationRunning={isSimulationRunning}
+                    />
+                  </TabsContent>
+                  <TabsContent value="logs" className="p-4 h-full overflow-y-auto">
+                    <SimulationLogsPanel />
+                  </TabsContent>
+                  <TabsContent value="details" className="p-4 h-full overflow-y-auto">
+                    <NodeDetailPanel
+                      selectedNode={selectedNode}
+                      updateNodeProperties={updateNodeProperties}
+                      onSendMessage={handleSendMessage}
+                      isSimulationRunning={isSimulationRunning}
+                    />
+                  </TabsContent>
+                  <TabsContent value="json-view" className="p-4 h-full overflow-y-auto">
+                    <JSONFormatViewer />
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </div>
           </div>
         </div>
 

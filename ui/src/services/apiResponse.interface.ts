@@ -11,3 +11,18 @@ export interface StartSimulationResponse {
     configuration: ExportDataI
     metrics: any
 }
+
+export interface ConnectionConfigPreset {
+  preset_name: string
+  preset_config: PresetConfig
+}
+
+export interface PresetConfig {
+  bandwidth: number
+  latency: number
+  packet_loss_rate: number
+  packet_error_rate: number
+  mtu: number
+  name_prefix: string
+  description: string
+}
