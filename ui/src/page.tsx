@@ -22,8 +22,9 @@ import { SimulatorNode } from "./components/node/base/baseNode"
 import { RealtimeLogSummary } from "./components/metrics/realtime-log-summary"
 import { ClassicalHost } from "./components/node/classical/classicalHost"
 import { MessagingPanel } from "./components/metrics/messaging-panel"
+import QuantumCodeEditor from "./components/code-editor/editor"
 
-type TabIDs = 'logs' | 'details' | 'messages' | 'json-view' | string
+type TabIDs = 'logs' | 'details' | 'messages' | 'json-view' | 'code-editor' | string
 
 export default function QuantumNetworkSimulator() {
   const [selectedNode, setSelectedNode] = useState<SimulatorNode | null>(null)
@@ -284,7 +285,7 @@ export default function QuantumNetworkSimulator() {
           </div>
 
           {/* Right Panel - Contextual Information */}
-          <div className="w-96 border-l border-slate-700 bg-slate-800 flex flex-col">
+          <div className="w-130 border-l border-slate-700 bg-slate-800 flex flex-col">
 
 
             {/* Always visible log summary widget */}
@@ -301,6 +302,7 @@ export default function QuantumNetworkSimulator() {
                   <TabsTrigger value="logs">Logs</TabsTrigger>
                   <TabsTrigger value="details">Details</TabsTrigger>
                   <TabsTrigger value="json-view">JSON View</TabsTrigger>
+                  {activeLabObject?.coding ? <TabsTrigger value="code-editor">Code Editor</TabsTrigger> : null}
                 </TabsList>
                 <div
                   className={`transition-all duration-300 ${isSimulationRunning && !isLogSummaryMinimized ? "h-[calc(100vh-280px)]" : isSimulationRunning ? "h-[calc(100vh-180px)]" : "h-[calc(100vh-80px)]"
@@ -327,6 +329,9 @@ export default function QuantumNetworkSimulator() {
                   </TabsContent>
                   <TabsContent value="json-view" className="p-4 h-full overflow-y-auto">
                     <JSONFormatViewer />
+                  </TabsContent>
+                  <TabsContent value="code-editor" className="p-4 h-full overflow-y-auto">
+                    {activeLabObject?.coding ? <QuantumCodeEditor activeLab={activeLabObject}/> : null}
                   </TabsContent>
                 </div>
               </Tabs>

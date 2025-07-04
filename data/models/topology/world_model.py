@@ -12,7 +12,23 @@ class WorldModal(JsonModel):
     size: Tuple[float, float] = Field(description="Size of the simulation world in (x, y) coordinates")
     zones: List[ZoneModal] = Field(description="List of zones within the simulation world")
     temporary_world: bool = RedisField(default=False, description="Flag to indicate if the world is temporary")
+    lab_world: bool= RedisField(default=False, description="Flag to indicate if the world is a lab world. Mostly ignored and unused in production.")
     
+    def get_host_by_name(self, host_name: str):
+        for zone in self.zones:
+            if zone.get_host_by_name(host_name):
+                return zone.get_host_by_name(host_name)
+        return None
+    
+    def get_network_by_host(self, host_name: str):
+        """Get the network by host name"""
+        for zone in self.zones:
+            for network in zone.networks:
+                for host in network.hosts:
+                    if host.name == host_name:
+                        return network
+        return None
+
     class Meta:
         global_key_prefix = "network-sim"
         model_key_prefix = "world"

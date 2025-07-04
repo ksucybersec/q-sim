@@ -45,6 +45,9 @@ class Coordinator:
 
         from ..agents.router.router_agent import RouterAgent
         self.agent_manager.register_agent(AgentType.ORCHESTRATOR, RouterAgent)
+
+        from ..agents.lab_assistant.lab_assistant_agent import LabAssistantAgent
+        self.agent_manager.register_agent(AgentType.LAB_ASSISTANT_AGENT, LabAssistantAgent)
         
     async def execute_workflow(self, workflow_id: WorkflowType, workflow_data: Dict[str, Any]):
         """Execute a multi-agent workflow."""
@@ -105,6 +108,21 @@ class Coordinator:
                         self.logger.info(f"Routing output: {routing_output}")
                         raise LLMError(f"Routing failed: {routing_output}")
                 return routing_output
+            
+            elif workflow_id == WorkflowType.LAB_ASSISTANT_WORKFLOW.value:
+                agent_id = AgentType.LAB_ASSISTANT_AGENT
+                task_data = workflow_data.get("task_data")
+                
+                self.logger.info(f"Executing workflow {workflow_id} with agent {agent_id}")
+                
+                # Execute the agent task
+                result = await self._run_agent_task(agent_id, task_data)
+                
+                # Update workflow status
+                self.active_workflows[workflow_id]["status"] = "completed"
+                self.active_workflows[workflow_id]["result"] = result
+
+                return result
 
         except Exception as e:
             self.logger.error(f"Workflow {workflow_id} failed: {str(e)}", traceback.format_exc())

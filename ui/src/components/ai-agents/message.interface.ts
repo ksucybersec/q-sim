@@ -43,3 +43,8 @@ export interface TopologyGenerationRequest extends ChatRequestI {
 export interface AgentRouterRequest extends ChatRequestI {
     extra_kwargs: any
 }
+
+export interface LabAssistantRequest extends ChatRequestI {
+    student_code: string
+    cursor_line_number: number
+    }

@@ -1,12 +1,10 @@
 """LangChain integration for network simulation logs"""
 
-from typing import Dict, List, Optional, Any, Callable
-from datetime import datetime, timedelta
-from langchain_redis import RedisConfig, RedisVectorStore
+from typing import Dict, List, Optional, Any
+from datetime import datetime
 from langchain.embeddings.base import Embeddings
 from langchain.schema import Document
 from langchain.docstore.document import Document as LangchainDocument
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from data.embedding.embedding_util import EmbeddingUtil
 from data.embedding.vector_log import VectorLogEntry

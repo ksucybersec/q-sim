@@ -60,7 +60,7 @@ class Network(Sobject):
     def start(self, fps):
         self.stop_flag = False
         self.logger.info(f"Starting Network - {self.name}")
-        thread = threading.Thread(target=self.simulation_loop, args=(fps,))
+        thread = threading.Thread(target=self.simulation_loop, args=(fps,), daemon=True)
         thread.start()
 
     def stop(self):

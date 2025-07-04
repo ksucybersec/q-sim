@@ -9,6 +9,7 @@ from ai_agent.src.orchestration.coordinator import Coordinator
 from data.models.conversation.conversation_model import MessageRole
 from data.models.conversation.conversation_ops import add_chat_message, create_conversation_metadata, get_conversation_metadata
 from server.api.agent.agent_request import AgentInteractionRequest, AgentRouterRequest
+from server.api.agent.lab_assistant_agent_api import handle_lab_assistant
 from server.api.agent.summarize import handle_summary_request
 from server.api.agent.topology_agent_api import handle_topology_design
 
@@ -28,7 +29,8 @@ async def handle_routing_request(message_dict: Dict[str, Any]):
 agent_to_handler = {
     AgentType.LOG_SUMMARIZER.value: handle_summary_request,
     AgentType.ORCHESTRATOR.value: handle_routing_request,
-    AgentType.TOPOLOGY_DESIGNER.value: handle_topology_design
+    AgentType.TOPOLOGY_DESIGNER.value: handle_topology_design,
+    AgentType.LAB_ASSISTANT_AGENT.value: handle_lab_assistant
 }
 
 @agent_router.post("/message")

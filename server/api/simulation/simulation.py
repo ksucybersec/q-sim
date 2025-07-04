@@ -2,7 +2,8 @@ import logging
 from fastapi import APIRouter, HTTPException, status, Body
 from typing import Dict, Any
 
-from openai import BaseModel
+from pydantic import BaseModel
+
 
 from data.models.topology.world_model import get_topology_from_redis
 from server.api.simulation.manager import SimulationManager

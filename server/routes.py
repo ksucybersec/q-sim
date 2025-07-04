@@ -3,7 +3,6 @@ from fastapi import APIRouter, FastAPI, Request, Response
 # from flask import Blueprint, request, Response, Flask, send_from_directory
 from fastapi.responses import StreamingResponse
 import httpx
-import requests
 
 
 def proxy_to_live_app(app):

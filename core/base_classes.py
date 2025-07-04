@@ -63,7 +63,7 @@ class World(Sobject):
             self.is_sequential_running = False
         
         self.logger.info(f"Starting Game Loop - {self.name}")
-        thread = threading.Thread(target=_game_loop)
+        thread = threading.Thread(target=_game_loop, daemon=True)
         thread.start()
 
 

@@ -1,0 +1,11 @@
+:80 {
+    # Serve static files from dist
+    root * /srv
+    file_server
+
+    # Proxy API requests to Python server
+    reverse_proxy /api/* python-server:8000
+    
+    # Optional: Health check endpoint
+    reverse_proxy /health python-server:8000
+}

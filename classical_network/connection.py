@@ -191,6 +191,7 @@ class ClassicConnection(Sobject):
             target=self._async_transmit_worker,
             args=thread_args,
             name=f"TransmitThread-Conn_{self.name}-Pkt_{packet.id}",
+            daemon=True,
         )
         transmission_thread.daemon = True
         transmission_thread.start()

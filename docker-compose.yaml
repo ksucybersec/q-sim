@@ -1,0 +1,55 @@
+services:
+  python-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    container_name: python-server
+    # ports:
+    #   - "8000:8000"
+    depends_on:
+      - redis
+    env_file:
+      - .dockerenv
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+
+  ui-builder:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+    container_name: ui-builder
+    volumes:
+      - ./ui/dist:/app/dist
+    networks:
+      - app-network
+
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: redis
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
+  caddy:
+    image: caddy:alpine
+    container_name: caddy
+    ports:
+      - "8001:80"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile
+      - ./ui/dist:/srv
+    depends_on:
+      - python-server
+      - ui-builder
+    networks:
+      - app-network
+
+volumes:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge

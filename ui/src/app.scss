@@ -15,3 +15,11 @@
 h1 {
   text-align: center;
 }
+.readonly-section {
+    background-color: rgba(71, 85, 105, 0.3) !important;
+}
+
+.readonly-glyph::before {
+    content: "🔒";
+    color: #64748b;
+}

@@ -26,7 +26,8 @@ export enum AgentID {
     PERFORMANCE_ANALYZER = "performance_analyzer",
     COMPOUND_AI_ARCHITECT = "compound_ai_architect",
     ORCHESTRATOR = "orchestrator",
-    LOG_SUMMARIZER = "log_summarizer"
+    LOG_SUMMARIZER = "log_summarizer",
+    LAB_ASSISTANT_AGENT = "lab_assistant_agent"
 }
 
 export enum AgentTask {

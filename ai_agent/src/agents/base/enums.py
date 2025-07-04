@@ -11,3 +11,4 @@ class AgentTaskType(Enum):
     TOPOLOGY_QNA = "topology_qna"
     ROUTING = "routing"
     VALIDATE_TOPOLOGY = "validate_topology"
+    LAB_CODE_ASSIST = "lab_code_assist"

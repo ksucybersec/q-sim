@@ -104,6 +104,6 @@ class InternetExchange(ClassicalNode):
                 
                 time.sleep(fps)
                 
-        thread = threading.Thread(target=_start)
+        thread = threading.Thread(target=_start, daemon=True)
         
         thread.start()

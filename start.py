@@ -1,4 +1,4 @@
-from flask.cli import load_dotenv
+from dotenv import load_dotenv
 
 if not load_dotenv():
     print("Error loading .env file")

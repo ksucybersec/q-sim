@@ -26,3 +26,11 @@ export interface PresetConfig {
   name_prefix: string
   description: string
 }
+
+export interface LabAssistantResponse {
+  function_name: string
+  start_line_number: number
+  generated_code: string
+  explanation: string
+  confidence_score: number
+}

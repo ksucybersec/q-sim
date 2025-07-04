@@ -1,4 +1,5 @@
-- ai-agent/requirements.txt
+-r ai_agent/requirements.txt
+# Simulator requirements
 matplotlib==3.9.4
 networkx==3.4.2
 qutip==5.0.4
@@ -6,3 +7,6 @@ qutip==5.0.4
 # Server requirements
 fastapi[standard]==0.115.12
 aiofiles==24.1.0
+python-dotenv==1.1.0
+uvicorn==0.34.2
+redis-om==0.3.5

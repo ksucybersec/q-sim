@@ -8,3 +8,4 @@ class AgentType(Enum):
     COMPOUND_AI_ARCHITECT = "compound_ai_architect"
     ORCHESTRATOR = "orchestrator"
     VALIDATION_AGENT = "validation_agent"
+    LAB_ASSISTANT_AGENT = "lab_assistant_agent"

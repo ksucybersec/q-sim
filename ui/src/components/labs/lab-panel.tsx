@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle2, XCircle, Clock, Beaker, ArrowRight, Award } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, Beaker, ArrowRight, Award, Code } from "lucide-react"
 import { EXERCISES } from "./exercise "
 import { exportToJSON } from "@/services/exportService"
 import { getLogger } from "@/helpers/simLogger"
@@ -30,31 +30,6 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
   const [activeLab, setActiveLab] = useState<string | null>(null)
   const [completedLabs, setCompletedLabs] = useState<string[]>([])
 
-
-  // Check if lab requirements are met
-  /**
-   * Checks if a lab is completed based on its requirements and the current network state.
-   *
-   * @param labId - The unique identifier of the lab to check for completion.
-   * @returns A boolean indicating whether the lab is completed (`true`) or not (`false`).
-   *
-   * ### Logic:
-   * 1. Retrieves the lab configuration using the provided `labId`.
-   * 2. Exports the current network state and validates its existence.
-   * 3. Counts the occurrences of each node type in the current network.
-   * 4. Verifies if all required node types are present in the network:
-   *    - Decrements the count for each matched node type to ensure accurate validation.
-   * 5. Checks if all required connections exist in the network:
-   *    - Validates bidirectional connections between specified node types.
-   * 6. Calculates the total and fulfilled requirements to update lab progress.
-   * 7. Returns `true` if all node and connection requirements are satisfied; otherwise, `false`.
-   *
-   * ### Why this is needed:
-   * This function is essential for determining the progress and completion status of a lab.
-   * It ensures that the user has met all the specified requirements (nodes and connections)
-   * for a lab, enabling the application to provide feedback, track progress, and unlock
-   * subsequent labs or features based on completion.
-   */
   const checkLabCompletion = (labId: string) => {
     const lab = EXERCISES.find((l) => l.id === labId)
     if (!lab) return false
@@ -67,19 +42,17 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
       return false;
     }
 
-    // Count the occurrences of each node type in the current network
     const nodeCounts = manager.getAllNodes().reduce((acc: Record<string, number>, node) => {
-      acc[node.nodeType] = (acc[node.nodeType] || 0) + 1; // Increment count for each node type
+      acc[node.nodeType] = (acc[node.nodeType] || 0) + 1;
       return acc;
     }, {});
 
-    // Check if all required node types exist in the network
     const nodesExist = requirements.nodes.every((reqNodeType) => {
       if (nodeCounts[reqNodeType]) {
-        nodeCounts[reqNodeType]--; // Decrement the count for the matched node type
-        return true; // Requirement for this node type is fulfilled
+        nodeCounts[reqNodeType]--;
+        return true;
       }
-      return false; // Requirement for this node type is not fulfilled
+      return false;
     });
 
     const connectionsExist = requirements.connections.every(([source, target]) => {
@@ -95,7 +68,7 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
     const totalRequirements = requirements.nodes.length + requirements.connections.length + (requirements.messages ? 1 : 0);
     const fulfilledRequirements =
       (nodesExist ? requirements.nodes.length : 0) +
-      (connectionsExist ? requirements.connections.length : 0) + 
+      (connectionsExist ? requirements.connections.length : 0) +
       (requirements.messages && messagesSent ? 1 : 0);
 
     updateLabProgress(fulfilledRequirements, totalRequirements);
@@ -103,17 +76,14 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
     return nodesExist && connectionsExist && messagesSent;
   }
 
-  // Check for lab completion when simulation state changes
   useEffect(() => {
     if (activeLab && checkLabCompletion(activeLab)) {
-      // Mark lab as completed
       if (!completedLabs.includes(activeLab)) {
         setCompletedLabs((prev) => [...prev, activeLab])
       }
     }
   }, [simulationState, activeLab, completedLabs])
 
-  // Get status badge for a lab
   const getLabStatusBadge = (labId: string) => {
     if (completedLabs.includes(labId)) {
       return (
@@ -141,7 +111,6 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
     )
   }
 
-  // Get difficulty badge color
   const getDifficultyBadge = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
       case "beginner":
@@ -160,7 +129,6 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
     setSelectedLab(null);
   }
 
-  // Calculate overall progress
   const overallProgress = (completedLabs.length / EXERCISES.length) * 100
 
   if (!isOpen) return null
@@ -203,13 +171,17 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                   >
                     <CardHeader className="p-3">
                       <div className="flex justify-between items-start">
-                        <CardTitle className="text-sm">{lab.title}</CardTitle>
+                        <div className="flex items-center gap-1">
+                          <CardTitle className="text-sm">{lab.title}</CardTitle>
+                          {lab.coding?.enabled && <Code className="h-3 w-3 text-blue-400" />}
+                        </div>
                         {getLabStatusBadge(lab.id)}
                       </div>
                       <CardDescription className="text-xs">{lab.description}</CardDescription>
                     </CardHeader>
                     <CardFooter className="p-3 pt-0 flex justify-between items-center">
                       <Badge className={getDifficultyBadge(lab.difficulty)}>{lab.difficulty}</Badge>
+                      {lab.coding?.enabled && <Code className="h-3 w-3 text-blue-400" />}
                       <span className="text-xs text-slate-400">{lab.estimatedTime}</span>
                     </CardFooter>
                   </Card>
@@ -229,11 +201,19 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                   return (
                     <>
                       <div className="mb-4">
-                        <h2 className="text-xl font-semibold mb-1">{lab.title}</h2>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h2 className="text-xl font-semibold">{lab.title}</h2>
+                          {lab.coding?.enabled && <Code className="h-4 w-4 text-blue-400" />}
+                        </div>
                         <div className="flex items-center gap-2 mb-2">
                           <Badge className={getDifficultyBadge(lab.difficulty)}>{lab.difficulty}</Badge>
                           <span className="text-sm text-slate-400">{lab.estimatedTime}</span>
                           {getLabStatusBadge(lab.id)}
+                          {lab.coding?.enabled && (
+                            <Badge className="bg-blue-900/30 text-blue-400">
+                              {lab.coding.language}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-slate-300">{lab.description}</p>
                       </div>
@@ -243,6 +223,12 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                           <TabsTrigger value="instructions">Instructions</TabsTrigger>
                           <TabsTrigger value="tips">Tips & Hints</TabsTrigger>
                           <TabsTrigger value="requirements">Requirements</TabsTrigger>
+                          {lab.coding?.enabled && (
+                            <TabsTrigger value="code">
+                              <Code className="h-3 w-3 mr-1" />
+                              Code
+                            </TabsTrigger>
+                          )}
                         </TabsList>
 
                         <TabsContent value="instructions" className="flex-1 overflow-auto">
@@ -322,6 +308,52 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                             </div>
                           </div>
                         </TabsContent>
+
+                        {lab.coding?.enabled && (
+                          <TabsContent value="code" className="flex-1 overflow-auto">
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-medium">Implementation Tasks</h3>
+                                <Badge className="bg-blue-900/30 text-blue-400">
+                                  {lab.coding.language}
+                                </Badge>
+                              </div>
+
+                              {lab.coding.scaffold.sections?.filter(section => section.type === 'editable' || section.type === 'todo').map((section) => (
+                                <div key={section.id} className="bg-slate-800 rounded-lg p-4 border border-slate-600">
+                                  <h4 className="text-sm font-medium text-blue-400 mb-2">{section.name}</h4>
+                                  {section.description && (
+                                    <p className="text-sm text-slate-300 mb-3">{section.description}</p>
+                                  )}
+                                  <div className="bg-slate-900 rounded p-3 border border-slate-500">
+                                    <pre className="text-xs text-slate-200 overflow-x-auto">
+                                      <code>
+                                        {lab.coding?.scaffold.code
+                                          .split('\n')
+                                          // .slice(section.startLine - 1, section.endLine)
+                                          .join('\n')
+                                          .trim() || '// Code section content'}
+                                      </code>
+                                    </pre>
+                                  </div>
+                                </div>
+                              ))}
+
+                              {lab.coding.validation && (
+                                <div className="bg-amber-900/20 border border-amber-800 rounded-lg p-3">
+                                  <h4 className="text-sm font-medium text-amber-200 mb-2">Code Constraints</h4>
+                                  <div className="text-xs text-amber-100 space-y-1">
+                                    <div>• Maximum {lab.coding.validation.maxQubits} qubits</div>
+                                    <div>• {lab.coding.validation.timeLimit} second execution limit</div>
+                                    {lab.coding.validation.allowedOperations?.length > 0 && (
+                                      <div>• Allowed operations: {lab.coding.validation.allowedOperations.join(', ')}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </TabsContent>
+                        )}
                       </Tabs>
 
                       <div className="mt-4 flex justify-end">
