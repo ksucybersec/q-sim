@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Separator } from "@/components/ui/separator"
-import { Cpu, Activity, Code, Settings, EthernetPort } from "lucide-react"
+import { Cpu, Unplug, EthernetPort } from "lucide-react"
 import { MessagingPanel } from "../metrics/messaging-panel"
 import { ClassicalHost } from "./classical/classicalHost"
 import { SimulatorNode } from "./base/baseNode"
@@ -18,6 +18,8 @@ import { cloneDeep } from "lodash"
 import { NodeFamily, SimulationNodeType } from "./base/enums"
 import { ConnectionConfigPreset } from "@/services/apiResponse.interface"
 import api from "@/services/api"
+import { Button } from "../ui/button"
+import { sendComponentDisconnectedEvent } from "@/helpers/userEvents/userEvents"
 
 interface NodeDetailPanelProps {
   selectedNode: SimulatorNode | null
@@ -76,6 +78,14 @@ export function NodeDetailPanel({
         <p className="text-slate-400">Select a node to view its details</p>
       </div>
     )
+  }
+
+  const disconnectConnection = () => {
+    const connectionManager = ConnectionManager.getInstance();
+    if (connectionManager && selectedConnection) {
+      connectionManager.removeLine(selectedConnection)
+      sendComponentDisconnectedEvent(selectedConnection.metaData.from.name, selectedConnection.metaData.to?.name as string)
+    }
   }
 
   const onNameChange = (event: any) => {
@@ -312,34 +322,42 @@ export function NodeDetailPanel({
               <h3 className="text-lg font-medium">Connection Settings</h3>
             </div>
 
+            <div className=" flex justify-between items-center">
 
-            <div className="grid gap-2">
-              <Label htmlFor="node-type">Connection From</Label>
-              <Select
-                disabled={connections.length === 0}
-                defaultValue={connections.length > 0 ? (connections[0].metaData.from === selectedNode ? connections[0].metaData.to?.name : connections[0].metaData.from?.name) : 'na'}
-                onValueChange={(value) => {
-                  const connection = findConnection(selectedNode, value);
-                  setSelectedConnection(connection || null);
-                  setSelectedPreset(connection?.metaData.connection_config_preset || 'none');
-                }}
-              >
-                <SelectTrigger id="node-type">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="na">N/A</SelectItem>
-                  {
-                    connections.map(conn => {
-                      const otherNode = conn.metaData.from === selectedNode ? conn.metaData.to : conn.metaData.from;
-                      if (!otherNode) {
-                        return null;
-                      }
-                      return <SelectItem key={otherNode?.name} value={otherNode?.name}>{otherNode.name}</SelectItem>
-                    })
-                  }
-                </SelectContent>
-              </Select>
+              <div className="grid gap-2">
+                <Label htmlFor="node-type">Connection From</Label>
+                <Select
+                  disabled={connections.length === 0}
+                  defaultValue={connections.length > 0 ? (connections[0].metaData.from === selectedNode ? connections[0].metaData.to?.name : connections[0].metaData.from?.name) : 'na'}
+                  onValueChange={(value) => {
+                    const connection = findConnection(selectedNode, value);
+                    setSelectedConnection(connection || null);
+                    setSelectedPreset(connection?.metaData.connection_config_preset || 'none');
+                  }}
+                >
+                  <SelectTrigger id="node-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="na">N/A</SelectItem>
+                    {
+                      connections.map(conn => {
+                        const otherNode = conn.metaData.from === selectedNode ? conn.metaData.to : conn.metaData.from;
+                        if (!otherNode) {
+                          return null;
+                        }
+                        return <SelectItem key={otherNode?.name} value={otherNode?.name}>{otherNode.name}</SelectItem>
+                      })
+                    }
+                  </SelectContent>
+                </Select>
+
+              </div>
+              {selectedConnection && (
+                <Button variant="destructive" onClick={disconnectConnection}>
+                  <Unplug></Unplug>
+                  Disconnect
+                </Button>)}
             </div>
 
             {
@@ -347,7 +365,7 @@ export function NodeDetailPanel({
                 <div className="grid gap-2">
                   <Label htmlFor="losskm">Loss Per Kilometer</Label>
                   <div className="flex items-center gap-4">
-                    <Slider
+                    <Slider disabled={selectedConnection.metaData.connectionType === NodeFamily.QUANTUM && selectedConnection.metaData.noise_model === 'none'}
                       id="losskm"
                       value={[selectedConnection.metaData.lossPerKm || 0.0001]}
                       max={1}
@@ -359,7 +377,8 @@ export function NodeDetailPanel({
                     <span className="w-18 text-center">{((selectedConnection.metaData.lossPerKm || 0.0001) * 100).toFixed(2)}%/km</span>
                   </div>
                 </div>
-                : 'Select Connection'}
+                : 'Select Connection'
+            }
 
 
             {selectedConnection?.metaData.connectionType === NodeFamily.CLASSICAL ?
@@ -460,7 +479,7 @@ export function NodeDetailPanel({
 
                   <div className="grid gap-2 ">
                     <Label htmlFor="noise-model">Noise Model</Label>
-                    <Select defaultValue={selectedConnection.metaData.noise_model} onValueChange={onNoiseModelChange}>
+                    <Select defaultValue={selectedConnection.metaData.noise_model || 'none'} onValueChange={onNoiseModelChange}>
                       <SelectTrigger id="noise-model" className="w-full">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>

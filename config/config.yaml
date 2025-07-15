@@ -1,7 +1,7 @@
 # llm_config.yaml
 llm:
   provider: "openai"
-  model: "gemini-2.5-flash-preview-05-20"
+  model: "gemini-2.0-flash"
   lite_model: "gemini-2.0-flash"
   api_key: "${OPENAI_API_KEY}"
   base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -15,10 +15,18 @@ llm:
   langchain_project_name: "simulator_agent_dev"
   langchain_tracing: true
   
+simulator:
+  # Disable to save token usage
+  disable_token_usage: false
+
 agents:
   agent_validation:
     enabled: true
     regenerate_on_invalid: true
+
+control_config:
+  enable_realtime_log_summary: true
+  enable_ai_feature: true
 
 logging:
   level: "INFO"

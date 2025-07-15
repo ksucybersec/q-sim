@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { NetworkCanvas } from "./components/canvas/network-canvas"
 import { Sidebar } from "./components/toolbar/sidebar"
 import { TopBar } from "./components/toolbar/top-bar"
-import { SimulationControls } from "./components/toolbar/simulation-controls"
 import { NodeDetailPanel } from "./components/node/node-detail-panel"
 import { JSONFormatViewer } from "./components/metrics/json-viewer"
 import api from "./services/api"
@@ -23,6 +22,11 @@ import { RealtimeLogSummary } from "./components/metrics/realtime-log-summary"
 import { ClassicalHost } from "./components/node/classical/classicalHost"
 import { MessagingPanel } from "./components/metrics/messaging-panel"
 import QuantumCodeEditor from "./components/code-editor/editor"
+import { Floatable } from "./helpers/components/floatingComponent/floatingComponent"
+import { Button } from "./components/ui/button"
+import { X } from "lucide-react"
+import { Input } from "./components/ui/input"
+import { sendLoginEvent } from "./helpers/userEvents/userEvents"
 
 type TabIDs = 'logs' | 'details' | 'messages' | 'json-view' | 'code-editor' | string
 
@@ -35,12 +39,16 @@ export default function QuantumNetworkSimulator() {
   const [activeLabObject, setActiveLabObject] = useState<ExerciseI | null>(null)
   const [activeMessages, setActiveMessages] = useState<{ id: string; source: string; target: string; content: any; protocol: string; startTime: number; duration: number }[]>([])
   const [activeTab, setActiveTab] = useState<TabIDs>("logs")
+  const [resetTrigger, setResetTrigger] = useState(0);
+
   // const [activeTopologyID, setActiveTopologyID] = useState<string | null>(null)
 
   // Lab-related state
   const [activeLab, setActiveLab] = useState<string | null>(null)
   const [labProgress, setLabProgress] = useState(0)
   const [completedLabs, setCompletedLabs] = useState<string[]>([])
+  const [isUsernameModalOpen, setIsUsernameModalOpen] = useState(false)
+  const [userNameInput, setUserNameInput] = useState("")
 
   // State variable for the AI panel
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
@@ -51,6 +59,12 @@ export default function QuantumNetworkSimulator() {
   const [isLogSummaryMinimized, setIsLogSummaryMinimized] = useState(false)
 
   useEffect(() => {
+    if (!simulationState.getUserName()) {
+      setIsUsernameModalOpen(true);
+    } else {
+      sendLoginEvent();
+    }
+
     setTimeout(() => {
       registerConnectionCallback();
     }, 5000);
@@ -110,6 +124,10 @@ export default function QuantumNetworkSimulator() {
     setSelectedNode(node)
     setActiveTab('logs')
   }
+
+  const resetFloatablePosition = () => {
+    setResetTrigger(prev => prev + 1);
+  };
 
   useEffect(() => {
     if (activeTab === 'messages' && !(selectedNode instanceof ClassicalHost)) {
@@ -187,11 +205,15 @@ export default function QuantumNetworkSimulator() {
   }
 
   // Handle starting a lab
-  const handleStartLab = (labId: string) => {
+  const handleStartLab = (labId: string | null) => {
+    if (!labId) {
+      setActiveLab(null)
+    }
     const lab = EXERCISES.find((l) => l.id === labId) || null;
     setActiveLab(labId)
     setLabProgress(0)
     setActiveLabObject(lab);
+    resetFloatablePosition();
     if (lab) {
       toast(`You've started the "${lab.title}" lab. Follow the instructions to complete it.`);
     }
@@ -224,6 +246,19 @@ export default function QuantumNetworkSimulator() {
     }
   }
 
+  const upsertUserID = async () => {
+    const response = await api.upsertUserId(userNameInput)
+    if (response.is_new_user) {
+      toast("New user created!.");
+    } else {
+      toast("User ID Found!");
+    }
+    simulationState.setUserName(response.user.username);
+
+    setTimeout(() => {
+      location.reload();
+    }, 2500)
+  }
 
   const updateNodeProperties = (properties: Partial<SimulatorNode>) => {
     if (!selectedNode) { console.warn("No node selected to update properties"); return }
@@ -251,6 +286,8 @@ export default function QuantumNetworkSimulator() {
           completedLabs={completedLabs}
           updateLabProgress={handleLabProgressUpdate}
           onOpenAIPanel={() => setIsAIPanelOpen(true)}
+          isRunning={isSimulationRunning}
+          toggleSimulation={executeSimulation}
         />
 
         {/* Main Workspace */}
@@ -267,11 +304,14 @@ export default function QuantumNetworkSimulator() {
 
             {/* Active Lab Indicator */}
             {activeLabObject && (
-              <ActiveLabIndicator activeLab={activeLabObject} progress={labProgress} />
+              // <ActiveLabIndicator activeLab={activeLabObject} progress={labProgress} />
+              <Floatable defaultPosition={{ x: 1200, y: 0 }}>
+                <ActiveLabIndicator activeLab={activeLabObject} progress={labProgress} />
+              </Floatable>
             )}
 
             {/* Simulation Controls Overlay */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+            {/* <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
               <SimulationControls
                 isRunning={isSimulationRunning}
                 onPlayPause={executeSimulation}
@@ -280,7 +320,7 @@ export default function QuantumNetworkSimulator() {
                 currentTime={currentTime}
                 onTimeChange={setCurrentTime}
               />
-            </div>
+            </div> */}
             <Toaster />
           </div>
 
@@ -331,7 +371,7 @@ export default function QuantumNetworkSimulator() {
                     <JSONFormatViewer />
                   </TabsContent>
                   <TabsContent value="code-editor" className="p-4 h-full overflow-y-auto">
-                    {activeLabObject?.coding ? <QuantumCodeEditor activeLab={activeLabObject}/> : null}
+                    {activeLabObject?.coding ? <QuantumCodeEditor activeLab={activeLabObject} /> : null}
                   </TabsContent>
                 </div>
               </Tabs>
@@ -346,6 +386,31 @@ export default function QuantumNetworkSimulator() {
       </div>
       {/* Add the AI Agents modal just before the closing div of the main component */}
       <AIAgentsModal isOpen={isAIPanelOpen} onClose={() => setIsAIPanelOpen(false)} />
+
+      {/* Enter Username Modal */}
+      {isUsernameModalOpen &&
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-slate-900 border border-slate-700 rounded-lg w-150 flex flex-col p-4">
+            <div className="flex items-center justify-between p-3 border-b border-slate-700">
+              <div>
+                <h2 className="text-lg font-medium">Enter Your Username</h2>
+                <h3 className="text-sm italic text-gray-600">Will automatically be created for new users</h3>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setIsUsernameModalOpen(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-hidden">
+              <Input placeholder="Enter Your Name" value={userNameInput} onChange={(e) => setUserNameInput(e.target.value)}>
+              </Input>
+
+              <Button variant='secondary' className="float-right mt-4 w-full" onClick={upsertUserID}>
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>}
     </div>
   )
 }

@@ -1,7 +1,16 @@
 class SimulationState {
     private simulationRunning = false;
-    private simulationID: string | null = "01JTF5QZMN3SV9NG6PMRDMGGEJ";
+    private simulationID: string | null = null;
     private worldId: string | null = null;
+    private userName: string | null = null;
+
+    constructor() {
+        const username = localStorage.getItem('userName')
+
+        if(username) {
+            this.setUserName(username);
+        }
+    }
 
     setSimulationID(simulationID: string | null) {
         this.simulationID = simulationID;
@@ -25,6 +34,20 @@ class SimulationState {
 
     getWorldId() {
         return this.worldId;
+    }
+
+    setUserName(userName: string) {
+        localStorage.setItem('userName', userName);
+        this.userName = userName;
+    }
+    
+    getUserName() {
+        return this.userName;
+    }
+
+    clearUserName() {
+        localStorage.removeItem('userName');
+        this.userName = null;
     }
 }
 

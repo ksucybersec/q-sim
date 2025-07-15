@@ -51,7 +51,7 @@ class EmbeddingUtil:
             from sentence_transformers import SentenceTransformer
             
             # Load the model
-            self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            self._embedding_model = SentenceTransformer('all-mpnet-base-v2')
         except ImportError:
             raise ImportError("Required packages not installed. Install with: pip install torch sentence-transformers")
     

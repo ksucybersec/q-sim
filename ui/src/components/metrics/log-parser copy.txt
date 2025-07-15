@@ -1,0 +1,186 @@
+import { LogI } from "./simulation-logs";
+
+/**
+ * Formats a Date object into HH:MM:SS string format.
+ * @param date The Date object to format.
+ * @returns The formatted time string.
+ */
+function formatTime(date: Date): string {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * Converts a raw websocket event object into a human-readable LogI object.
+ * @param eventData The raw event object received from the websocket.
+ * @returns A LogI object representing the formatted log message.
+ */
+export function convertEventToLog(eventData: any): LogI {
+    const time = formatTime(new Date());
+    let level = 'INFO'; // Default level
+    let source = 'Simulation'; // Default source if node is not available
+    let message = 'Received data in unhandled format.';
+
+    try {
+        // Check if it's a simulation_event structure (has event_type and node)
+        if (typeof eventData === 'object' && eventData !== null && eventData.event_type !== undefined && eventData.node !== undefined) {
+
+            source = eventData.node || source;
+            const eventType = eventData.event_type;
+            const eventDetails = eventData.data; // Specific details for this event type
+
+            switch (eventType) {
+                case 'transmission_started':
+                    message = `${source}: Transmission started.`;
+                    if (eventDetails) {
+                        message += ` (delay: ${eventDetails.delay?.toFixed(3)}s, bandwidth: ${eventDetails.bandwidth})`;
+                    }
+                    break;
+
+                case 'data_sent':
+                    message = `${source}: Sent data.`;
+                    if (eventDetails?.destination?.name && eventDetails.data !== undefined) {
+                        message = `${source}: Sent data to ${eventDetails.destination.name}: "${sliceData(eventDetails.data)}".`;
+                    }
+                    break;
+
+                case 'packet_delivered':
+                    message = `${source}: Packet delivered.`;
+                    if (eventDetails?.destination !== undefined) {
+                        message = `${source}: Packet delivered to ${eventDetails.destination}.`;
+                        if (eventDetails.packet_id) {
+                            message += ` (ID: ${eventDetails.packet_id.substring(0, 6)}...)`;
+                        }
+                        if (eventDetails.delay !== undefined) {
+                            message += ` (Delay: ${eventDetails.delay?.toFixed(3)}s)`;
+                        }
+                    }
+                    break;
+
+                case 'packet_received': {
+                    message = `${source}: Packet received.`;
+                    if (eventDetails?.packet) {
+                        const packet = eventDetails.packet;
+                        // Extract simple type name from "<class 'module.Class'>" format
+                        const packetTypeMatch = packet.type?.match(/<class\s*'[^']*\.([^']+)'\s*>/);
+                        const packetType = packetTypeMatch ? packetTypeMatch[1] : 'Unknown Packet';
+                        const packetFrom = packet.from || 'Unknown Sender';
+
+                        message = `${source}: Received ${packetType} from ${packetFrom}.`;
+
+                        // Specific handling for QKD data strings (Python dict string)
+                        if (packetType === 'QKDTransmissionPacket' && typeof packet.data === 'string') {
+                            // Use regex to safely extract the 'type' field from the Python dict string
+                            const qkdTypeMatch = packet.data.match(/'type'\s*:\s*'([^']+)'/);
+                            if (qkdTypeMatch && qkdTypeMatch[1]) {
+                                message += ` (QKD Type: ${qkdTypeMatch[1]}).`;
+                            }
+                        } else if (packetType === 'ClassicDataPacket' && typeof packet.data === 'string' && !packet.data.startsWith('bytearray')) {
+                            // Include classic data unless it's the bytearray representation
+                            message += ` Data: "${sliceData(packet.data)}".`;
+                        }
+                    }
+                    break;
+                }
+
+                case 'qkd_initiated':
+                    message = `${source}: Initiated QKD.`;
+                    if (eventDetails?.with_adapter?.name) {
+                        message = `${source}: Initiated QKD with ${eventDetails.with_adapter.name}.`;
+                    }
+                    break;
+
+                case 'data_received':
+                    message = `${source}: Received data.`;
+                    if (eventDetails) {
+                        if (eventDetails.message?.type) {
+                            message = `${source}: Received message (Type: ${eventDetails.message.type})`;
+                            // TODO: Check if needed
+                            // if (eventDetails.message.data !== undefined && typeof eventDetails.message.data !== 'object' && !Array.isArray(eventDetails.message.data)) {
+                            //     message += `: "${eventDetails.message.data}"`;
+                            // }
+                        } else if (eventDetails.data !== undefined && typeof eventDetails.data === 'string' && !eventDetails.data.startsWith('bytearray')) {
+                            // Handle "Hello World!" case etc. (classic data)
+                            message = `${source}: Received data: "${sliceData(eventDetails.data)}".`;
+                        } else if (eventDetails.packet) {
+                            // Sometimes this event carries packet info too
+                            const packet = eventDetails.packet;
+                            const packetTypeMatch = packet.type?.match(/<class\s*'[^']*\.([^']+)'\s*>/);
+                            const packetType = packetTypeMatch ? packetTypeMatch[1] : 'Unknown Packet';
+                            const packetFrom = packet.from || 'Unknown Sender';
+                            message = `${source}: Received packet data (${packetType} from ${packetFrom})`;
+                        }
+                    }
+                    break;
+
+                // Add more simulation_event types as needed based on your simulation
+                default:
+                    message = `${source}: Unhandled simulation event type "${eventType}".`;
+                    level = 'WARN';
+                    console.warn(`Unhandled simulation event type: ${eventType}`, eventData);
+                    break;
+            }
+
+        } else if (typeof eventData === 'object' && eventData !== null && (eventData.summary_text !== undefined || eventData.error_message !== undefined)) {
+            // Check if it's a simulation_summary structure
+            source = 'Simulation Summary'; // Summary events are not node-specific
+            if (eventData.error_message) {
+                level = 'ERROR';
+                message = `ERROR: ${eventData.error_message}`;
+            } else if (Array.isArray(eventData.summary_text) && eventData.summary_text.length > 0) {
+                level = 'INFO'; // Summaries are informative
+                message = eventData.summary_text.join('\n'); // Join summary lines
+            } else {
+                level = 'INFO'; // Not an error, but worth noting
+                message = 'Received empty simulation summary.';
+            }
+
+        } else {
+            // If it doesn't match expected simulation event or summary structure
+            level = 'WARN';
+            source = 'Simulation System';
+            message = 'Received data in unhandled format.';
+            console.warn('Received data in unhandled format:', eventData);
+        }
+
+    } catch (error: any) {
+        // Catch any errors during processing to prevent the function from crashing
+        message = `Error processing event data: ${error.message}`;
+        level = 'ERROR';
+        source = 'System';
+        console.error('Error processing event data:', eventData, error);
+    }
+
+    return { level, time, source, message };
+}
+
+function sliceData(data: string): string {
+    if (typeof data !== 'string') { return data }
+    return data.slice(0, 10) + (data.length > 10 ? '...' : '');
+}
+
+// Helper functions
+function getNodeName(node: any): string {
+    if (!node) return "unknown";
+    if (typeof node === 'string') return node;
+    return node.name || "unknown";
+}
+
+function transformData(data: any): string {
+    if (data instanceof ArrayBuffer || data?.toString().startsWith('bytearray')) {
+        return "[Encrypted Data]";
+    }
+    return data?.toString() || "";
+}
+
+function extractSender(packetStr: any): string {
+    if (!packetStr) return "unknown";
+
+    // Extract the "from" field from the packet string
+    // const fromMatch = packetStr.match(/"from":\s*"([^"]+)"/);
+    const fromMatch = packetStr['hops'][packetStr['hops'].length - 1] || packetStr['from'];
+    // return fromMatch ? fromMatch[1] : "unknown";
+    return fromMatch;
+}

@@ -28,6 +28,7 @@ import { getLogger } from "@/helpers/simLogger"
 import simulationState from "@/helpers/utils/simulationState"
 import { toast } from "sonner"
 import { uniqueId } from "lodash"
+import { sendAIAgentMessageSentEvent, sendAiAgentResponseReceivedEvent } from "@/helpers/userEvents/userEvents"
 
 // Agent types and their details
 const agentTypes = AGENT_DEFINITION;
@@ -300,8 +301,10 @@ export function AIAgentsPanel() {
             attachments: []
         };
         setMessages(prevMessages => [...prevMessages, userMessage]);
-        console.log(messages)
+
+        sendAIAgentMessageSentEvent(userMessage.content, conversationID)
         const response = await api.sendAgentMessage(agentRequest)
+        sendAiAgentResponseReceivedEvent(JSON.stringify(response), conversationID)
 
         await handleReceivedMessage(agentId, response, agentTask);
     };

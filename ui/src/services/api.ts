@@ -2,11 +2,12 @@
 
 import { getLogger } from "@/helpers/simLogger";
 import { exportToJSON } from "./exportService";
-import { ServerSimulationStatus } from "./api.interface";
+import { ControlConfigI, ServerSimulationStatus, UpsertUserIDResponse } from "./api.interface";
 import { ExportDataI } from "./export.interface";
 import { ChatRequestI } from "@/components/ai-agents/message.interface";
 import simulationState from "@/helpers/utils/simulationState";
 import { ConnectionConfigPreset, StartSimulationResponse } from "./apiResponse.interface";
+import { UserEventData } from "@/helpers/userEvents/userEvents.interface";
 
 // Blank for current host
 const SERVER_HOST = '/api'
@@ -18,6 +19,8 @@ function makeFetchCall(url: string, method = 'GET', body?: any, headers: any = {
     if (!headers['Content-Type']) {
         headers['Content-Type'] = 'application/json'
     }
+    headers['Authorization'] = simulationState.getUserName()
+
     return fetch(url, {
         method,
         headers,
@@ -26,6 +29,8 @@ function makeFetchCall(url: string, method = 'GET', body?: any, headers: any = {
 }
 
 const logger = getLogger("API")
+
+const responseCache = new Map<string, any>();
 
 const api = {
     createNode: async (nodeData: any): Promise<any> => {
@@ -93,12 +98,17 @@ const api = {
         }
     },
     getConnectionPresets: async (): Promise<(ConnectionConfigPreset[] | null)> => {
+        if(responseCache.has('connection_config_presets')) {
+            return responseCache.get('connection_config_presets') as ConnectionConfigPreset[];
+        }
         const response = await makeFetchCall(SERVER_HOST + `/topology/connection_config_presets`, 'GET')
         if(response.status != 200) {
             throw new Error('Error in fetching connection presets')
         }
         try {
-            return await response.json()
+            const responseJson = await response.json()
+            responseCache.set('connection_config_presets', responseJson);
+            return responseJson;
         } catch (e) {
             logger.error(`Error in fetching connection presets`, e)
             return null
@@ -160,6 +170,28 @@ const api = {
         }
 
         return await response.json();
+    },
+    getConfig: async (): Promise<ControlConfigI> => {
+        if(responseCache.has('config')) {
+            return responseCache.get('config') as ControlConfigI;
+        }
+        const response = await makeFetchCall(SERVER_HOST + `/config/`);
+        if (!response.ok) {
+            throw new Error(`Failed to get config: ${response.statusText}`);
+        }
+        const responseJson = await response.json();
+        responseCache.set('config',responseJson);
+        return responseJson as ControlConfigI;
+    },
+    upsertUserId: async(userID: string) => {
+        const response = await makeFetchCall(SERVER_HOST + `/user/${userID}/`, 'POST');
+        if (!response.ok) {
+            throw new Error(`Failed to upsert user ID: ${response.statusText}`);
+        }
+        return await response.json() as UpsertUserIDResponse;
+    },
+    sendUserEvent: async (eventData: UserEventData) => {
+        const response = await makeFetchCall(SERVER_HOST + `/user/event/`, 'POST', eventData)
     }
 };
 

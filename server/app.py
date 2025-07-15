@@ -13,6 +13,6 @@ def get_app(lifespan):
     from server.routes import register_routes
     register_routes(app)
     
-    app.add_websocket_route("/ws", websocket_endpoint)
+    app.add_websocket_route("/api/ws", websocket_endpoint)
     
     return app

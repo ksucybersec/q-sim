@@ -41,7 +41,7 @@ export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, si
     setTimeout(async () => {
       const socketHost = process.env.NODE_ENV === 'production' ? window.location.toString() : 'http://localhost:5174';
       const socketUrl = new URL(socketHost.replace("http", "ws"));
-      socketUrl.pathname = "/ws";
+      socketUrl.pathname = "/api/ws";
       WebSocketClient.getInstance().connect(socketUrl.toString());
 
       NetworkAnimationController.getInstance(editor?.canvas as fabric.Canvas);

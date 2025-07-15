@@ -12,6 +12,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Send, MessageSquare, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import { NetworkManager } from "../node/network/networkManager"
 import { ClassicalHost } from "../node/classical/classicalHost"
+import { usePrevious } from "@/helpers/hooks/usePrevious"
+import { sendParameterChangedEvent } from "@/helpers/userEvents/userEvents"
+import { ClickEventButton } from "@/helpers/components/butonEvent/clickEvent"
 
 interface MessagingPanelProps {
   selectedNode: any
@@ -30,6 +33,7 @@ export function MessagingPanel({
   const [protocol, setProtocol] = useState("classical")
   const networkManager = NetworkManager.getInstance();
   const [targetOptions, setTargetOptions] = useState<ClassicalHost[]>([]);
+    const previousValue = usePrevious(targetNode);
   
   // Reset target node when selected node changes
   useEffect(() => {
@@ -41,6 +45,12 @@ export function MessagingPanel({
     })
     setTargetOptions(options);
   }, [selectedNode])
+
+  useEffect(() => {
+    if(previousValue || targetNode) {
+      sendParameterChangedEvent('targetNode', previousValue || '', targetNode)
+    }
+  }, [targetNode])
   
   // Sample message history - would be replaced with actual message data
   const messageHistory = [
@@ -159,10 +169,10 @@ export function MessagingPanel({
       </div>
       
       <Tabs defaultValue="compose" className="w-full">
-        <TabsList className="grid grid-cols-2">
+        {/* <TabsList className="grid grid-cols-2">
           <TabsTrigger value="compose">Compose</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
+        </TabsList> */}
         
         <TabsContent value="compose" className="space-y-4 pt-4">
           <div className="space-y-4">
@@ -223,7 +233,8 @@ export function MessagingPanel({
               />
             </div>
             
-            <Button 
+            <ClickEventButton elementType="Send Packet" elementDescription={"User Sent Packet from " + selectedNode.name + " to " + targetNode}>
+              <Button 
               className="w-full" 
               onClick={() => {
                 if (targetNode && messageContent) {
@@ -236,6 +247,7 @@ export function MessagingPanel({
               <Send className="h-4 w-4 mr-2" />
               Send Message
             </Button>
+            </ClickEventButton>
             
             {!isSimulationRunning && (
               <div className="text-center text-amber-400 text-sm">

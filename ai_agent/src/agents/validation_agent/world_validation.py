@@ -287,14 +287,16 @@ def _validate_value_sanity(world: WorldModal, errors: List[str]):
 
             for conn_idx, connection in enumerate(network.connections):
                 conn_context = f"Connection '{connection.name}' (idx {conn_idx}, {network_context})"
-                if connection.bandwidth <= 0:
-                    _add_error(errors, conn_context, "bandwidth", f"Bandwidth ({connection.bandwidth} Mbps) must be positive.")
-                if connection.latency < 0:
-                    _add_error(errors, conn_context, "latency", f"Latency ({connection.latency} ms) must be non-negative.")
-                if connection.length <= 0: # Length usually implies physical existence
-                    _add_error(errors, conn_context, "length", f"Length ({connection.length} km) must be positive.")
-                if connection.loss_per_km < 0:
-                    _add_error(errors, conn_context, "loss_per_km", f"Loss per km ({connection.loss_per_km}) must be non-negative.")
+                # Allow -1 for infinite values for now.
+                # TODO: Revisit this logic if we want to handle infinite bandwidth/latency differently.
+                # if connection.bandwidth <= 0:
+                #     _add_error(errors, conn_context, "bandwidth", f"Bandwidth ({connection.bandwidth} Mbps) must be positive.")
+                # if connection.latency < 0:
+                #     _add_error(errors, conn_context, "latency", f"Latency ({connection.latency} ms) must be non-negative.")
+                # if connection.length <= 0: # Length usually implies physical existence
+                #     _add_error(errors, conn_context, "length", f"Length ({connection.length} km) must be positive.")
+                # if connection.loss_per_km < 0:
+                #     _add_error(errors, conn_context, "loss_per_km", f"Loss per km ({connection.loss_per_km}) must be non-negative.")
 
         # Adapter location already checked in spatial for non-negativity.
 

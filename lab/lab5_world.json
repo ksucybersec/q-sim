@@ -1,0 +1,167 @@
+{
+  "pk": "01JZ91GCQ00Z9X16VWGJ30VWAJ",
+  "name": "QSimLab__BB84DebuggingLabSolutions",
+  "size": [
+    1000.0,
+    1000.0
+  ],
+  "zones": [
+    {
+      "name": "Default Zone",
+      "type": "SECURE",
+      "size": [
+        1000.0,
+        1000.0
+      ],
+      "position": [
+        0.0,
+        0.0
+      ],
+      "networks": [
+        {
+          "name": "Default Classical Network",
+          "address": "default_classical_network",
+          "type": "CLASSICAL_NETWORK",
+          "location": [
+            0.0,
+            0.0
+          ],
+          "hosts": [
+            {
+              "name": "Alice",
+              "type": "ClassicalHost",
+              "address": "Alice",
+              "location": [
+                28.0,
+                912.0
+              ]
+            },
+            {
+              "name": "Bob",
+              "type": "ClassicalHost",
+              "address": "Bob",
+              "location": [
+                427.0,
+                291.0
+              ]
+            },
+            {
+              "name": "alice_router",
+              "type": "ClassicalRouter",
+              "address": "alice_router",
+              "location": [
+                522.0,
+                522.0
+              ]
+            },
+            {
+              "name": "bob_router",
+              "type": "ClassicalRouter",
+              "address": "bob_router",
+              "location": [
+                730.0,
+                584.0
+              ]
+            }
+          ],
+          "connections": [
+            {
+              "from_node": "Alice",
+              "to_node": "alice_router",
+              "length": 1000.0,
+              "loss_per_km": 0.0,
+              "name": "Alice_to_alice_router",
+              "noise_model": "none",
+              "noise_strength": 0.01,
+              "error_rate_threshold": 10.0,
+              "qbits": 128,
+              "bandwidth": 100000000000,
+              "latency": 0.05,
+              "packet_loss_rate": 1e-9,
+              "packet_error_rate": 1e-12,
+              "mtu": 9000,
+              "connection_config_preset": null
+            },
+            {
+              "from_node": "Bob",
+              "to_node": "bob_router",
+              "length": 1000.0,
+              "loss_per_km": 0.0,
+              "name": "Bob_to_bob_router",
+              "noise_model": "none",
+              "noise_strength": 0.01,
+              "error_rate_threshold": 10.0,
+              "qbits": 128,
+              "bandwidth": 100000000000,
+              "latency": 0.05,
+              "packet_loss_rate": 1e-9,
+              "packet_error_rate": 1e-12,
+              "mtu": 9000,
+              "connection_config_preset": null
+            }
+          ]
+        },
+        {
+          "name": "Default Quantum Network",
+          "address": "default_quantum_network",
+          "type": "QUANTUM_NETWORK",
+          "location": [
+            0.0,
+            0.0
+          ],
+          "hosts": [
+            {
+              "name": "QAlice",
+              "type": "QuantumHost",
+              "address": "QAlice",
+              "location": [
+                427.0,
+                912.0
+              ]
+            },
+            {
+              "name": "QBob",
+              "type": "QuantumHost",
+              "address": "QBob",
+              "location": [
+                712.0,
+                312.0
+              ]
+            }
+          ],
+          "connections": []
+        }
+      ],
+      "adapters": [
+        {
+          "name": "QAliceAdapter",
+          "type": "QUMO",
+          "address": "QAliceAdapter",
+          "location": [
+            901.0,
+            750.0
+          ],
+          "quantumHost": "QAlice",
+          "classicalHost": "Alice",
+          "classicalNetwork": "Default Classical Network",
+          "quantumNetwork": "Default Quantum Network"
+        },
+        {
+          "name": "QBobAdapter",
+          "type": "QUMO",
+          "address": "QBobAdapter",
+          "location": [
+            371.0,
+            609.0
+          ],
+          "quantumHost": "QBob",
+          "classicalHost": "Bob",
+          "classicalNetwork": "Default Classical Network",
+          "quantumNetwork": "Default Quantum Network"
+        }
+      ]
+    }
+  ],
+  "temporary_world": true,
+  "lab_world": true
+}

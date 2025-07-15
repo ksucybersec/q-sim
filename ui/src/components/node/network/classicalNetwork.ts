@@ -33,6 +33,16 @@ export class ClassicalNetwork extends ClassicalNetworkObject {
         });
     }
 
+    deleteNodes(...nodes: SimulatorNode[]) {
+        nodes.forEach(node => {
+            if(this.connectedNodes.has(node)) {
+                this.connectedNodes.delete(node);
+            } else {
+                console.warn(`Node ${node.name} is not part of this network.`);
+            }
+        });
+    }
+
 
     toExportJson(): NetworkI {
         const connections = ConnectionManager.getInstance().getAllConnections()

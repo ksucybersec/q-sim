@@ -3,6 +3,7 @@ from data.models.conversation.conversation_model import (
     ChatLogMetadata,
     ChatMessage,
 )
+from data.models.events.event_model import UserEventModal
 from data.models.simulation.simulation_model import SimulationModal
 from data.models.topology.node_model import (
     ConnectionModal,
@@ -12,8 +13,10 @@ from data.models.topology.node_model import (
 )
 from data.models.topology.zone_model import ZoneModal
 from data.models.topology.world_model import WorldModal
+from data.models.user.user_model import UserModal
 
 from redis_om import Migrator
+
 
 __all__ = [
     ConnectionModal,
@@ -26,6 +29,8 @@ __all__ = [
     AgentTurn,
     ChatMessage,
     ChatLogMetadata,
+    UserModal,
+    UserEventModal
 ]
 
 

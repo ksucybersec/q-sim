@@ -10,7 +10,9 @@ from ai_agent.src.agents.base.enums import AgentTaskType
 from ai_agent.src.agents.log_summarization.structures import RealtimeLogSummaryInput
 from ai_agent.src.consts.agent_type import AgentType
 from ai_agent.src.orchestration.coordinator import Coordinator
+from config.config import get_config
 from core.base_classes import World
+from core.enums import SimulationEventType
 from core.event import Event
 from data.embedding.embedding_util import EmbeddingUtil
 from data.models.simulation.log_model import LogEntryModel, add_log_entry
@@ -23,6 +25,7 @@ from data.models.simulation.simulation_model import (
 from data.models.topology.world_model import WorldModal
 from json_parser import simulate_from_json
 from server.socket_server.socket_server import ConnectionManager
+from tasks import summarize_logs_task
 
 
 class SimulationManager:
@@ -33,6 +36,7 @@ class SimulationManager:
     agent_coordinator = Coordinator()
     current_log_summary: List[str] = []
     socket_conn: ConnectionManager = None
+    config = get_config()
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -50,7 +54,7 @@ class SimulationManager:
         self.current_simulation = None
         self.simulation_data: SimulationModal = None
         self.main_event_loop = None
-        self.embedding_util = EmbeddingUtil(embedding_provider="openai")
+        self.embedding_util = EmbeddingUtil()
 
     @classmethod
     def get_instance(cls) -> "SimulationManager":
@@ -119,49 +123,55 @@ class SimulationManager:
                 "details": event.to_dict(),
             }
         )
-        self.embedding_util.embed_and_store_log(log_entry)
+        if event.event_type not in [SimulationEventType.TRANSMISSION_STARTED, SimulationEventType.DATA_SENT]:
+            self.embedding_util.embed_and_store_log(log_entry)
         self.logs_to_summarize.append(log_entry)
 
     def _summarize_delta_logs(self) -> None:
         SUMMARIZE_EVERY_SECONDS = 2
 
-        async def _handle_summary_result(summary_future: asyncio.Future[Optional[Dict[str, Any]]]) -> None:
-            if summary_future.done():
-                summary_result = summary_future.result()
-                self.last_summarized_on = time.time()
-                if summary_result is not None:
-                    new_summary = summary_result['summary_text']
-                    if len(new_summary) == 1:
-                        self.current_log_summary.append(new_summary[0])
-                    else:
-                        self.current_log_summary = new_summary
-                    summary_result['summary_text'] = self.current_log_summary
-                    self.emit_event("simulation_summary", summary_result)
-
-        if (self.last_summarized_on is None or time.time() - self.last_summarized_on >= SUMMARIZE_EVERY_SECONDS) and self.logs_to_summarize:
+        if (self.last_summarized_on is None or 
+            time.time() - self.last_summarized_on >= SUMMARIZE_EVERY_SECONDS) and self.logs_to_summarize:
+            
             logs_to_summarize = self.logs_to_summarize.copy()
             self.logs_to_summarize.clear()
-
-            agent_args = RealtimeLogSummaryInput(
+            
+            # Send to Celery instead of running locally
+            task = summarize_logs_task.delay(
                 simulation_id=self.simulation_data.pk,
                 previous_summary=self.current_log_summary,
                 new_logs=[l.to_human_string() for l in logs_to_summarize],
-                conversation_id=self.simulation_data.pk,
-                optional_instructions=None
+                conversation_id=self.simulation_data.pk
             )
-
-            coro_to_run = self.agent_coordinator._run_agent_task(AgentType.LOG_SUMMARIZER, {
-                'task_id': AgentTaskType.REALTIME_LOG_SUMMARY,
-                'input_data': agent_args
-            })
             
-            # Schedule the coroutine on the main event loop from another thread
-            def schedule_task():
-                # Schedule the task without blocking
-                task = asyncio.create_task(coro_to_run)
-                # task.add_done_callback(_handle_summary_result)
-                task.add_done_callback(lambda fut: asyncio.create_task(_handle_summary_result(fut)))
-            self.main_event_loop.call_soon_threadsafe(schedule_task)
+            # Schedule result handler to run on main event loop
+            def schedule_result_handler():
+                asyncio.create_task(self._handle_celery_result(task))
+            
+            self.main_event_loop.call_soon_threadsafe(schedule_result_handler)
+    
+    async def _handle_celery_result(self, task):
+        """Handle Celery task result asynchronously"""
+        try:
+            # Poll for result without blocking
+            while not task.ready():
+                await asyncio.sleep(0.1)
+            
+            summary_result = task.result
+            self.last_summarized_on = time.time()
+            
+            if summary_result is not None:
+                new_summary = summary_result['summary_text']
+                if len(new_summary) == 1:
+                    self.current_log_summary.append(new_summary[0])
+                else:
+                    self.current_log_summary = new_summary
+                    
+                summary_result['summary_text'] = self.current_log_summary
+                self.emit_event("simulation_summary", summary_result)
+                
+        except Exception as e:
+            print(f"Error handling Celery result: {e}")
 
     def _run_simulation(self, topology_data: WorldModal) -> None:
         """
@@ -190,7 +200,8 @@ class SimulationManager:
 
                     while self.simulation_world.is_running:
                         time.sleep(2)
-                        self._summarize_delta_logs()
+                        if self.config.control_config.enable_realtime_log_summary and self.config.control_config.enable_ai_feature:
+                            self._summarize_delta_logs()
 
                     self.emit_event(
                         "simulation_completed",
@@ -310,8 +321,7 @@ class SimulationManager:
         """
         error_info = {"message": str(error), "traceback": traceback.format_exc()}
 
-        self.simulation_data["status"] = "error"
-        self.simulation_data["error"] = error_info
+        self.simulation_data.status = "error"
         self.is_running = False
 
         self.emit_event("simulation_error", error_info)

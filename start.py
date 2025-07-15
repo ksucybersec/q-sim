@@ -82,5 +82,6 @@ if __name__ == '__main__':
         "start:app",
         host=host,
         port=port,
-        reload=reload_flag
+        reload=reload_flag,
+        access_log=True
     )

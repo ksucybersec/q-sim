@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+import json
 import logging
+import pprint
 from typing import Dict, Any, List, Optional, Union
 from typing import Dict, Any, List, Optional, Union, Type
 from pydantic import BaseModel, Field
@@ -144,6 +146,20 @@ class BaseAgent(ABC):
             ''')
             traceback.print_exc()
             raise ValueError("Unsupported output data type")
+        
+
+    def save_agent_response(self, response):
+        try:
+            with open(f'{self.agent_id}_response.json', 'w') as f:
+                json.dump(response, f, indent=4, sort_keys=True)
+        except Exception as e:
+            logging.error(f"Error saving agent response: {e}")
+            print(traceback.print_exc())
+
+            try:
+                pprint(response)
+            except Exception:
+                print(response)
         
 
     # =================== BASE TOOLS ======================

@@ -1,11 +1,38 @@
 :80 {
-    # Serve static files from dist
-    root * /srv
-    file_server
-
+    # Enable debug logging
+    log {
+        output stdout
+        format json
+        level DEBUG
+    }
+    
+    # Basic metrics endpoint
+    metrics /metrics
+    
+    # Request tracking headers
+    header {
+        X-Request-ID {http.request.uuid}
+        X-Real-IP {http.request.remote_host}
+    }
+    
+    # WebSocket proxy (must come before file_server)
+    reverse_proxy /ws/* python-server:8000 {
+        
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
+    
     # Proxy API requests to Python server
     reverse_proxy /api/* python-server:8000
     
-    # Optional: Health check endpoint
+    # Health check endpoint
     reverse_proxy /health python-server:8000
+    
+    # Serve static files from dist (must come last)
+    root * /srv
+    file_server
 }

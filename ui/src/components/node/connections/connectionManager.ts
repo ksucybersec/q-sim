@@ -6,6 +6,7 @@ import { NetworkManager } from "../network/networkManager";
 import { getLogger } from "../../../helpers/simLogger";
 import { getNodeFamily } from "../base/enums";
 import { QuantumAdapter } from "../base/quantum/quantumAdapter";
+import { sendComponentDragEvent, sendComponentDragEventDebounced } from "@/helpers/userEvents/userEvents";
 
 
 type ConnectionCallbackFunction = (line: SimulatorConnection, from: SimulatorNode, to: SimulatorNode) => void;
@@ -150,10 +151,12 @@ export class ConnectionManager {
 
         const onMouseMove = (_: any) => {
             if (isDown) {
+                const [oldX, oldY] = [from.getX(), from.getY()]
                 line.set({
                     'x1': from.getX() + from.width / 2,
                     'y1': from.getY() + from.height / 2
                 });
+                sendComponentDragEventDebounced(from.name, oldX + ',' + oldY, line.getX() + ',' + line.getY())
                 NetworkManager.getInstance().onNodeMoved(from);
             }
         }
@@ -182,10 +185,12 @@ export class ConnectionManager {
 
         const onMouseMove = (_: any) => {
             if (isDown) {
+                const [oldX, oldY] = [to.getX(), to.getY()]
                 line.set({
                     'x2': to.getX() + to.width / 2,
                     'y2': to.getY() + to.height / 2
                 });
+                sendComponentDragEventDebounced(to.name, oldX + ',' + oldY, line.getX() + ',' + line.getY())
                 NetworkManager.getInstance().onNodeMoved(to);
             }
         };
@@ -217,14 +222,44 @@ export class ConnectionManager {
         this.inprogressLine.delete(inProgressLineId);
     }
 
+    removeLine(line: SimulatorConnection) {
+        if (!line.metaData.from || !line.metaData.to) {
+            this.logger.error('Line does not have from or to node metadata, cannot remove connection');
+            return;
+        }
+        const lineId = this.getLineId(line.metaData.from, line.metaData.to);
+        this.canvas.remove(line);
+        this.connectionStore.delete(lineId);
+        this.logger.info('Removed connection b/w', line.metaData.from.name, line.metaData.to.name);
+
+        return NetworkManager.getInstance().onConnectionRemoved(line.metaData.from, line.metaData.to);
+    }
+
+    removeConnection(from: SimulatorNode, to: SimulatorNode) {
+        const lineId = this.getLineId(from, to);
+        if (!this.connectionStore.has(lineId)) {
+            this.logger.error('Connection does not exist between', from.name, 'and', to.name);
+            return;
+        }
+
+        const line = this.connectionStore.get(lineId);
+        if (!line) {
+            this.logger.error('Line not found for connection between', from.name, 'and', to.name);
+            return;
+        }
+
+        this.removeLine(line);
+    }
+
     removeAllConnectionsIfExists(deletedNode: SimulatorNode) {
         for (const [key, line] of this.connectionStore) {
 
             if (line.metaData.to && (line.metaData.from == deletedNode || line.metaData.to == deletedNode)) {
-                this.canvas.remove(line);
-                this.connectionStore.delete(key);
-                this.logger.info('Removed connection b/w', line.metaData.from.name, line.metaData.to.name);
-                NetworkManager.getInstance().onConnectionRemoved(line.metaData.from, line.metaData.to);
+                const network = this.removeLine(line);
+
+                if (network) {
+                    network.deleteNodes(deletedNode)
+                }
             }
         }
     }

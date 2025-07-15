@@ -90,7 +90,9 @@ class QuantumAdapter(Node):
 
     def on_qkd_established(self, key: List[int]):
         self.shared_key = key
-        self.logger.debug(f"QKD Established {key}")
+        key_str = ''.join(map(str, self.shared_key))
+        print(f"Shared Key: {key_str}")
+        self._send_update(SimulationEventType.SHARED_KEY_GENERATED, key = key_str)
 
         while not self.input_data_buffer.empty():
             packet = self.input_data_buffer.get()
@@ -132,6 +134,7 @@ class QuantumAdapter(Node):
             if self.paired_adapter and packet.to_address == self.local_classical_router:
                 if self.shared_key:
                     packet = self.encrypt_packet(packet)
+                    self._send_update(SimulationEventType.DATA_ENCRYPTED, cipher=packet.data, algorithm="XOR")
                     self.forward_packet(packet, self.paired_adapter.local_classical_router)
                 else:
                     print(
@@ -177,6 +180,7 @@ class QuantumAdapter(Node):
         # Decrypt the packet if a shared key exists
         if self.shared_key:
             packet = self.decrypt_packet(packet)
+            self._send_update(SimulationEventType.DATA_DECRYPTED, data=packet.data, algorithm="XOR")
             # Assuming the decrypted packet is meant to be forwarded to a classical node
             self.forward_packet(
                 packet, packet.to_address

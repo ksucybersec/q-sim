@@ -10,7 +10,7 @@ const receiverConnections = [[SimulationNodeType.CLASSICAL_HOST, SimulationNodeT
 export const EXERCISE3: ExerciseI = {
     "id": "quantum-repeater-range-analysis",
     "title": "Quantum Repeater Range Analysis",
-    "description": "Analyze the impact of distance on quantum communication and optimize repeater placement to improve quantum link quality",
+    "description": "Analyze the impact of distance on quantum communication and optimize repeater placement to improve quantum link quality. This exercise demonstrates why quantum communication faces fundamental distance limitations due to photon loss and decoherence, and how quantum repeaters enable long-distance quantum networks by creating intermediate entanglement points.",
     "difficulty": "Intermediate",
     "estimatedTime": "25 min",
     "category": "quantum",

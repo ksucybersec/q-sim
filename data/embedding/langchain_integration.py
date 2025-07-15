@@ -17,7 +17,7 @@ class OpenAIEmbeddings(Embeddings):
 
     def __init__(self):
         """Initialize the embedding utility"""
-        self.embedding_util = EmbeddingUtil(embedding_provider="openai")
+        self.embedding_util = EmbeddingUtil()
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embed a list of documents"""
@@ -33,7 +33,7 @@ class HuggingFaceEmbeddings(Embeddings):
 
     def __init__(self):
         """Initialize the embedding utility"""
-        self.embedding_util = EmbeddingUtil(embedding_provider="huggingface")
+        self.embedding_util = EmbeddingUtil()
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embed a list of documents"""

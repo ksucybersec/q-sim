@@ -11,7 +11,7 @@ const receiverConnections = [[SimulationNodeType.CLASSICAL_HOST, SimulationNodeT
 export const EXERCISE2: ExerciseI = {
     "id": "quantum-key-distribution-eavesdropper",
     "title": "Quantum Key Distribution with Eavesdropper",
-    "description": "Build a QKD setup between two quantum hosts and observe how an eavesdropper is detected through quantum measurement disturbance",
+    "description": "Build a QKD setup between two quantum hosts and observe how an eavesdropper is detected through quantum measurement disturbance. This exercise demonstrates why quantum cryptography is fundamentally more secure than classical methods. Any attempt to intercept quantum information inevitably disturbs the quantum states, alerting the communicating parties to the presence of an eavesdropper.",
     "difficulty": "Intermediate",
     "estimatedTime": "20 min",
     "category": "quantum",

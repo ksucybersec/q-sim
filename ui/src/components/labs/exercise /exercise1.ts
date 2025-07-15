@@ -10,7 +10,10 @@ const receiverConnections = [[SimulationNodeType.CLASSICAL_HOST, SimulationNodeT
 export const EXERCISE1: ExerciseI = {
     "id": "basic-network-construction",
     "title": "Basic Network Construction",
-    "description": "Create a hybrid classical-quantum network with adapters for connecting both sender and receiver paths",
+    "description": `
+Create a hybrid classical-quantum network with adapters for connecting both sender and receiver paths.
+This exercise introduces a fundamental concept in quantum networking. Since real-world quantum systems must interface with the existing classical internet, understanding this link is crucial. You'll learn how the **Quantum Adapter** acts as a key component to translate between *classical bits* and *quantum qubits*. By building a complete sender-to-receiver path, you will grasp the basic architecture required for any hybrid communication.
+    `,
     "difficulty": "Beginner",
     "estimatedTime": "15 min",  
     "category": "hybrid",

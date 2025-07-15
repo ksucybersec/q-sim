@@ -10,7 +10,6 @@ import {
   Router,
   Cpu,
   Network,
-  Share2,
   Save,
   FolderOpen,
   Settings,
@@ -18,9 +17,9 @@ import {
   PlayCircle,
   Database,
   FileText,
-  Zap,
   Workflow,
 } from "lucide-react"
+import { sendClickComponentEvent } from "@/helpers/userEvents/userEvents"
 
 interface SidebarProps {
   onCreateNode: (action: string) => void;
@@ -42,35 +41,40 @@ export function Sidebar({ onCreateNode }: SidebarProps) {
       name: "Classical Host",
       icon: <Laptop className="h-5 w-5" />,
       color: "bg-blue-500",
-      action: "createClassicalHost"
+      action: "createClassicalHost",
+      tooltip: "Traditional computing device that processes information using classical bits"
     },
     {
       id: "classical-router",
       name: "Classical Router",
       icon: <Router className="h-5 w-5" />,
       color: "bg-blue-600",
-      action: "createClassicalRouter"
+      action: "createClassicalRouter",
+      tooltip: "Network device that directs classical data packets between different network segments"
     },
     {
       id: "quantum-host",
       name: "Quantum Host",
       icon: <Cpu className="h-5 w-5" />,
       color: "bg-green-500",
-      action: "createQuantumHost"
+      action: "createQuantumHost",
+      tooltip: "Computing device that processes quantum information using qubits and quantum operations"
     },
     {
       id: "quantum-adapter",
       name: "Quantum Adapter",
       icon: <Network className="h-5 w-5" />,
       color: "bg-green-600",
-      action: "createQuantumAdapter"
+      action: "createQuantumAdapter",
+      tooltip: "Interface device that converts between classical and quantum communication protocols"
     },
     {
       id: "quantum-repeater",
       name: "Quantum Repeater",
       icon: <Network className="h-5 w-5" />,
       color: "bg-purple-500",
-      action: "createQuantumRepeater"
+      action: "createQuantumRepeater",
+      tooltip: "Device that extends quantum communication range by amplifying and retransmitting quantum signals"
     },
     // {
     //   id: "quantum-channel",
@@ -92,6 +96,7 @@ export function Sidebar({ onCreateNode }: SidebarProps) {
   const handleNodeClick = (node: typeof nodeTypes[0]) => {
     if (onCreateNode) {
       onCreateNode(node.action);
+      sendClickComponentEvent(node.action)
     }
   }
 
@@ -99,7 +104,7 @@ export function Sidebar({ onCreateNode }: SidebarProps) {
     <div className="w-64 border-r border-slate-700 bg-slate-800 flex flex-col">
       {/* Top Icons */}
       <div className="flex justify-around p-2 border-b border-slate-700">
-        <TooltipProvider>
+        {/* <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -149,7 +154,7 @@ export function Sidebar({ onCreateNode }: SidebarProps) {
               <p>Help</p>
             </TooltipContent>
           </Tooltip>
-        </TooltipProvider>
+        </TooltipProvider> */}
       </div>
 
       {/* Category Tabs */}
@@ -181,15 +186,37 @@ export function Sidebar({ onCreateNode }: SidebarProps) {
             <h3 className="text-sm font-medium text-slate-400">Network Components</h3>
             <div className="space-y-2">
               {nodeTypes.map((node) => (
-                <div
-                  key={node.id}
-                  className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-700 cursor-move"
-                  draggable
-                  onClick={() => handleNodeClick(node)}
-                >
-                  <div className={`p-1.5 rounded-md ${node.color}`}>{node.icon}</div>
-                  <span className="text-sm">{node.name}</span>
-                </div>
+
+                // <div
+                //   key={node.id}
+                //   className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-700 cursor-move"
+                //   draggable
+                //   onClick={() => handleNodeClick(node)}
+                // >
+                //   <div className={`p-1.5 rounded-md ${node.color}`}>{node.icon}</div>
+                //   <span className="text-sm">{node.name}</span>
+                // </div>
+                <span key={node.id}>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          key={node.id}
+                          className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-700 cursor-move"
+                          draggable
+                          onClick={() => handleNodeClick(node)}
+                        >
+                          <div className={`p-1.5 rounded-md ${node.color}`}>{node.icon}</div>
+                          <span className="text-sm">{node.name}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {node.tooltip && <p> {node.tooltip}</p>}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </span>
               ))}
             </div>
 

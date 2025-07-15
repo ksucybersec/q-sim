@@ -4,8 +4,10 @@ import yaml
 import os
 from pathlib import Path
 
+from config.control_config import ControlConfig
 from config.data_config import RedisConfig
 from config.llm_config import AgentConfig, LLMConfig
+from config.simulator_config import SimulationConfig
 
 
 class LoggingConfig(BaseModel):
@@ -18,6 +20,8 @@ class AppConfig(BaseSettings):
     logging: LoggingConfig
     redis: RedisConfig
     agents: AgentConfig
+    simulator: SimulationConfig
+    control_config: ControlConfig
 
     model_config = SettingsConfigDict(env_nested_delimiter="__")
 

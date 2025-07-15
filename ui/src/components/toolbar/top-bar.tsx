@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,23 +10,26 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronDown, ZoomIn, ZoomOut, RotateCcw, Beaker, Check, Bot } from "lucide-react"
+import { ChevronDown, RotateCcw, Beaker, Check, Bot, Pause, Play, User, LogOut } from "lucide-react"
 import { downloadJson, exportToJSON } from "@/services/exportService"
 import api from "@/services/api"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { LabPanel } from "../labs/lab-panel"
 import { Badge } from "../ui/badge"
 import { EXERCISES } from "../labs/exercise "
-import { set } from "lodash"
 import { ExportDataI } from "@/services/export.interface"
 import simulationState from "@/helpers/utils/simulationState"
+import { ClickEventButton } from "@/helpers/components/butonEvent/clickEvent"
+import { UserEventType } from "@/helpers/userEvents/userEvents.enums"
 
 interface TopBarProps {
-  onStartLab?: (labId: string) => void
+  onStartLab?: (labId: string | null) => void
   completedLabs?: string[]
   simulationStateUpdateCount: any
   updateLabProgress: (completed: number, total: number) => void
-  onOpenAIPanel?: () => void
+  onOpenAIPanel?: () => void,
+  isRunning: boolean
+  toggleSimulation: () => void
 }
 
 export function TopBar({
@@ -36,11 +38,19 @@ export function TopBar({
   simulationStateUpdateCount,
   updateLabProgress,
   onOpenAIPanel = () => { },
+  isRunning,
+  toggleSimulation,
 }: TopBarProps
 ) {
+  const [isAIEnabled, setIsAIEnabled] = useState(false)
   const [isLabPanelOpen, setIsLabPanelOpen] = useState(false)
   const [savedTopologies, setSavedTopologies] = useState([])
 
+  useEffect(() => {
+    api.getConfig().then((config) => {
+      setIsAIEnabled(config.enable_ai_feature);
+    })
+  }, [])
 
   const fetchSavedTopologies = async () => {
     const response = await api.listSavedTopologies();
@@ -127,58 +137,6 @@ export function TopBar({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1">
-                Edit <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>Undo</DropdownMenuItem>
-              <DropdownMenuItem>Redo</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Cut</DropdownMenuItem>
-              <DropdownMenuItem>Copy</DropdownMenuItem>
-              <DropdownMenuItem>Paste</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Select All</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu> */}
-
-            {/* <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-1">
-                View <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>Zoom In</DropdownMenuItem>
-              <DropdownMenuItem>Zoom Out</DropdownMenuItem>
-              <DropdownMenuItem>Fit to Screen</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Show Grid</DropdownMenuItem>
-              <DropdownMenuItem>Show Labels</DropdownMenuItem>
-              <DropdownMenuItem>Show Quantum States</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu> */}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 gap-1">
-                  Simulation <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem>Run</DropdownMenuItem>
-                {/* <DropdownMenuItem>Pause</DropdownMenuItem> */}
-                <DropdownMenuItem>Stop</DropdownMenuItem>
-                <DropdownMenuItem>Reset</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {/* <DropdownMenuItem>Configure Parameters...</DropdownMenuItem>
-              <DropdownMenuItem>Export Results...</DropdownMenuItem> */}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             {/* New Lab Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -194,10 +152,6 @@ export function TopBar({
                   <Beaker className="h-4 w-4 mr-2" />
                   Browse Labs
                 </DropdownMenuItem>
-                {/* <DropdownMenuItem>
-                  <Award className="h-4 w-4 mr-2" />
-                  My Progress
-                </DropdownMenuItem> */}
                 <DropdownMenuSeparator />
                 {
                   EXERCISES.map((exercise) => (
@@ -214,38 +168,37 @@ export function TopBar({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center border rounded-md overflow-hidden">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none border-r">
-              <ZoomOut className="h-4 w-4" />
+          <ClickEventButton elementType="Simulation Button" elementDescription={isRunning ? "Stop Simulation" : "Start Simulation"} 
+          eventType={isRunning ? UserEventType.SIMULATION_COMPLETE : UserEventType.SIMULATION_START}>
+            <Button size="sm" className="h-8 gap-1" onClick={toggleSimulation} variant={isRunning ? "destructive" : "secondary"}>
+              {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              {isRunning ? "Stop" : "Run"} Simulation
             </Button>
-            <Input type="text" defaultValue={"100%"} className="h-8 w-16 border-0 rounded-none text-center" />
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none border-l">
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </div>
+          </ClickEventButton>
 
-          <Button size="sm" className="h-8 gap-1" onClick={onOpenAIPanel}>
-            <Bot className="h-4 w-4" />
-            AI Agents
+          {
+            isAIEnabled &&
+            <ClickEventButton elementType="AI Agent Button" elementDescription="Click to open AI Agent Panel From Top bar" eventType={UserEventType.AI_AGENT_OPEN}>
+              <Button size="sm" className="h-8 gap-1" onClick={onOpenAIPanel}>
+                <Bot className="h-4 w-4" />
+                AI Agents
+              </Button>
+            </ClickEventButton>
+          }
+
+          <Button onClick={() => { simulationState.clearUserName(); location.replace('/'); }}>
+            <User className="h-4 w-4"></User>
+            {simulationState.getUserName()}
+            <LogOut className="ml-2"></LogOut>
           </Button>
 
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <RotateCcw className="h-4 w-4" />
           </Button>
 
-          {/* <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Grid className="h-4 w-4" />
-        </Button>
-
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Layers className="h-4 w-4" />
-        </Button>
-
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Download className="h-4 w-4" />
-        </Button> */}
         </div>
       </div>
+
       {/* Lab Panel */}
       <LabPanel
         isOpen={isLabPanelOpen}

@@ -15,15 +15,21 @@ services:
     networks:
       - app-network
 
-  ui-builder:
+  celery:
     build:
       context: .
-      dockerfile: docker/Dockerfile.node
-    container_name: ui-builder
+      dockerfile: docker/Dockerfile.python
+    command: celery -A tasks worker --loglevel=info
+    container_name: celery
     volumes:
-      - ./ui/dist:/app/dist
+      - .:/app
+    depends_on:
+      - python-server
+    env_file:
+      - .dockerenv
     networks:
       - app-network
+
 
   redis:
     image: redis/redis-stack-server:latest
@@ -33,17 +39,29 @@ services:
     networks:
       - app-network
 
+  # Redis monitoring
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - app-network
+      
   caddy:
-    image: caddy:alpine
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.caddy
     container_name: caddy
     ports:
       - "8001:80"
-    volumes:
-      - ./docker/Caddyfile:/etc/caddy/Caddyfile
-      - ./ui/dist:/srv
     depends_on:
       - python-server
-      - ui-builder
+      # - ui-builder
     networks:
       - app-network
 

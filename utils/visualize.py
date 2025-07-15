@@ -121,16 +121,7 @@ def visualize_network(world: World, filename="network_visualization.png"):
                         )
             elif isinstance(node, QuantumNode):
                 if isinstance(node, QuantumRepeater):
-                    for channel in node.quantum_channels_in:
-                        start_node = channel.node_1
-                        end_node = channel.node_2
-                        ax.plot(
-                            [start_node.zone.position[0] + start_node.location[0],end_node.zone.position[0] + end_node.location[0]],
-                            [start_node.zone.position[1] + start_node.location[1], end_node.zone.position[1] + end_node.location[1]],
-                            "g-",
-                            linewidth=0.5,
-                        )
-                    for channel in node.quantum_channels_out:
+                    for channel in node.quantum_channels:
                         start_node = channel.node_1
                         end_node = channel.node_2
                         ax.plot(

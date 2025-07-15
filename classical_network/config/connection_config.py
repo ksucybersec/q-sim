@@ -14,18 +14,18 @@ class ConnectionConfig:
     name_prefix: str = "conn" # Prefix for automatically generated connection names
     description: str = "" # Default description for connections using this config
 
-    def __post_init__(self):
-        # Basic validation
-        if self.bandwidth <= 0:
-            raise ValueError("Bandwidth must be positive.")
-        if self.latency < 0:
-            raise ValueError("Latency cannot be negative.")
-        if not (0.0 <= self.packet_loss_rate <= 1.0):
-            raise ValueError("Packet loss rate must be between 0.0 and 1.0.")
-        if not (0.0 <= self.packet_error_rate <= 1.0):
-            raise ValueError("Packet error rate must be between 0.0 and 1.0.")
-        if self.mtu <= 0:
-            raise ValueError("MTU must be positive.")
+    # def __post_init__(self):
+    #     # Basic validation
+    #     if self.bandwidth <= 0:
+    #         raise ValueError("Bandwidth must be positive.")
+    #     if self.latency < 0:
+    #         raise ValueError("Latency cannot be negative.")
+    #     if not (0.0 <= self.packet_loss_rate <= 1.0):
+    #         raise ValueError("Packet loss rate must be between 0.0 and 1.0.")
+    #     if not (0.0 <= self.packet_error_rate <= 1.0):
+    #         raise ValueError("Packet error rate must be between 0.0 and 1.0.")
+    #     if self.mtu <= 0:
+    #         raise ValueError("MTU must be positive.")
         
     def to_dict(self) -> dict:
         return {

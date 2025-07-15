@@ -125,19 +125,19 @@ export class SimulatorConnection extends fabric.Line {
             "from_node": this.metaData.from.name,
             "to_node": this.metaData.to?.name,
             "length": parseFloat(distanceInKm), // Distance in kilometers
-            "loss_per_km": this.metaData.lossPerKm || 0.1,
-            "noise_model": this.metaData.noise_model || "default",
+            "loss_per_km": this.metaData.lossPerKm || 0,
+            "noise_model": this.metaData.noise_model || "none",
             "noise_strength": this.metaData.noise_strength || 0,
             "name": `${this.metaData.from.name}-${this.metaData.to?.name}`,
             connection_config_preset: this.metaData.connection_config_preset || 'none',
             qbits: this.metaData.qbits,
             error_rate_threshold: this.metaData.error_rate_threshold,
 
-            "bandwidth": this.metaData.bandwidth || -1,
-            "latency": this.metaData.latency || -1,
-            mtu: this.metaData.mtu || -1,
-            packet_loss_rate: this.metaData.packet_loss_rate || 0.05,
-            packet_error_rate: this.metaData.packet_error_rate || 0.02,
+            "bandwidth": this.metaData.bandwidth || 999999999,
+            "latency": this.metaData.latency || 0,
+            mtu: this.metaData.mtu || 9999999999,
+            packet_loss_rate: this.metaData.packet_loss_rate || 0,
+            packet_error_rate: this.metaData.packet_error_rate || 0,
         }
     }
 }

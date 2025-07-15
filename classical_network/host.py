@@ -70,7 +70,7 @@ class ClassicalHost(ClassicalNode):
             if reassembled:
                 self._send_update(SimulationEventType.INFO, data=dict(type=InfoEventType.FRAGMENT_REASSEMBLED, fragment_id=frag_id, message=f"Fragment {frag_id}/{len(fragments)} fragments reassembled."))
                 del self.fragment_buffer[frag_id]
-                self.receive_data(reassembled.data)
+                self.receive_data(reassembled)
 
     def receive_packet(self, packet: ClassicDataPacket):
         self._send_update(SimulationEventType.PACKET_RECEIVED, packet=packet)   
@@ -79,7 +79,7 @@ class ClassicalHost(ClassicalNode):
             if packet.get_header('fragment_id'):
                 self._handle_fragment(packet)
             else:
-                self.receive_data(packet.data)
+                self.receive_data(packet)
 
     def add_quantum_adapter(self, adapter: QuantumAdapter):
         self.quantum_adapter = adapter
@@ -124,8 +124,15 @@ class ClassicalHost(ClassicalNode):
             SimulationEventType.DATA_SENT, data=data, destination=destination_address
         )
 
-    def receive_data(self, data):
-        self._send_update(SimulationEventType.DATA_RECEIVED, data=data)
+    def receive_data(self, packet:ClassicDataPacket):
+        self._send_update(SimulationEventType.DATA_RECEIVED, data=packet.data)
+
+        print(f"Is Destination: {packet.destination_address}, Name {self}, Is Destination: {packet.destination_address == self}")
+        if packet.destination_address == self or packet.to_address == self:
+            self._send_update(
+                SimulationEventType.CLASSICAL_DATA_RECEIVED,
+                data=packet.data, destination=self.name
+            )
 
     def __name__(self):
         return f"Host - '{self.name}'"

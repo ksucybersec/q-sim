@@ -1,4 +1,5 @@
 import logging
+import traceback
 from fastapi import APIRouter, HTTPException, status, Body
 from typing import Dict, Any
 
@@ -71,6 +72,7 @@ async def send_simulation_message(message_data: SendMessageRequest):
         )
     except Exception as e:
         print(f"Error sending simulation message: {e}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to send message: {str(e)}",

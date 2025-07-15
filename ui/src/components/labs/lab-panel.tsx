@@ -15,11 +15,12 @@ import { manager } from "../node/nodeManager"
 import { ConnectionManager } from "../node/connections/connectionManager"
 import { getSimulationNodeTypeString } from "../node/base/enums"
 import { WebSocketClient } from "@/services/socket"
+import Markdown from "react-markdown"
 
 interface LabPanelProps {
   isOpen: boolean
   onClose: () => void
-  onStartLab: (labId: string) => void
+  onStartLab: (labId: string | null) => void
   simulationState: any
   updateLabProgress: (completed: number, total: number) => void
 }
@@ -127,6 +128,7 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
   const onLabCancel = () => {
     setActiveLab(null);
     setSelectedLab(null);
+    onStartLab(null);
   }
 
   const overallProgress = (completedLabs.length / EXERCISES.length) * 100
@@ -177,7 +179,7 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                         </div>
                         {getLabStatusBadge(lab.id)}
                       </div>
-                      <CardDescription className="text-xs">{lab.description}</CardDescription>
+                      <CardDescription className="text-xs"><Markdown>{lab.description.slice(0, 150)}</Markdown></CardDescription>
                     </CardHeader>
                     <CardFooter className="p-3 pt-0 flex justify-between items-center">
                       <Badge className={getDifficultyBadge(lab.difficulty)}>{lab.difficulty}</Badge>
@@ -215,7 +217,9 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                             </Badge>
                           )}
                         </div>
-                        <p className="text-slate-300">{lab.description}</p>
+                        {/* <p className="text-slate-300"> */}
+                          <Markdown>{lab.description}</Markdown>
+                          {/* </p> */}
                       </div>
 
                       <Tabs defaultValue="instructions" className="flex-1 flex flex-col">
@@ -323,7 +327,7 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                                 <div key={section.id} className="bg-slate-800 rounded-lg p-4 border border-slate-600">
                                   <h4 className="text-sm font-medium text-blue-400 mb-2">{section.name}</h4>
                                   {section.description && (
-                                    <p className="text-sm text-slate-300 mb-3">{section.description}</p>
+                                    <p className="text-sm text-slate-300 mb-3"></p>
                                   )}
                                   <div className="bg-slate-900 rounded p-3 border border-slate-500">
                                     <pre className="text-xs text-slate-200 overflow-x-auto">

@@ -5,6 +5,7 @@ from typing import Literal, Optional
 from classical_network.config.connection_config import ConnectionConfig
 from classical_network.node import ClassicalNode
 from classical_network.packet import ClassicDataPacket
+from classical_network.presets.connection_presets import DEFAULT_PRESET
 from core.base_classes import Sobject
 from core.enums import SimulationEventType
 from core.exceptions import ConnectionDownError, MtuExceededError, RoutingError
@@ -16,7 +17,7 @@ class ClassicConnection(Sobject):
         node_1: "ClassicalNode",
         node_2: "ClassicalNode",
         config: ConnectionConfig,
-        status: Literal['up', 'down'] = "up",
+        status: Literal["up", "down"] = "up",
         name: Optional[str] = None,
         description: Optional[str] = None,
     ):
@@ -30,11 +31,23 @@ class ClassicConnection(Sobject):
 
         self.node_1 = node_1
         self.node_2 = node_2
-        self.bandwidth = config.bandwidth
-        self.latency = config.latency
-        self.packet_loss_rate = config.packet_loss_rate
-        self.packet_error_rate = config.packet_error_rate
-        self.mtu = config.mtu
+        self.bandwidth = (
+            DEFAULT_PRESET.bandwidth if config.bandwidth == -1 else config.bandwidth
+        )
+        self.latency = (
+            DEFAULT_PRESET.latency if config.latency == -1 else config.latency
+        )
+        self.packet_loss_rate = (
+            DEFAULT_PRESET.packet_error_rate
+            if config.packet_loss_rate == -1
+            else config.packet_loss_rate
+        )
+        self.packet_error_rate = (
+            DEFAULT_PRESET.packet_error_rate
+            if config.packet_error_rate == -1
+            else config.packet_error_rate
+        )
+        self.mtu = DEFAULT_PRESET.mtu if config.mtu == -1 else config.mtu
         self.status = status
 
         if not (0.0 <= self.packet_loss_rate <= 1.0):

@@ -57,7 +57,7 @@ class AgentManager:
             local_llm = ChatOllama(
                 model="llama3.1:8b",
                 temperature=0,
-                base_url="http://10.80.14.216:11434",
+                base_url="http://100.119.118.117:11434",
                 format="json",
             )
             llm.add_sub_model("local_llm", local_llm)

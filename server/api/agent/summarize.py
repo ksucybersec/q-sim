@@ -14,7 +14,7 @@ async def handle_summary_request(message_dict: Dict[str, Any] ):
         {
             "task_data": {
                 "task_id": AgentTaskType.LOG_SUMMARIZATION,
-                "input_data": {"simulation_id": message.simulation_id},
+                "input_data": {"simulation_id": message.simulation_id, "conversation_id": message.conversation_id},
             }
         },
     )

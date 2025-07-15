@@ -2,6 +2,7 @@ import * as fabric from 'fabric';
 import { SimulatorNode } from "../base/baseNode";
 import { ClassicalNetwork } from "./classicalNetwork";
 import { getLogger } from '../../../helpers/simLogger';
+import { sendComponentConnectedEvent } from '@/helpers/userEvents/userEvents';
 
 /**
  * Manages the creation, retrieval, and manipulation of network objects within the simulator.
@@ -91,6 +92,8 @@ export class NetworkManager {
             // Case 4: Both Nodes in the SAME Network - No change needed for network structure
             this.logger.debug("Nodes already in the same network, no network change.");
         }
+
+        sendComponentConnectedEvent(node1.name, node2.name);
     }
 
     onConnectionRemoved(node1: SimulatorNode, node2: SimulatorNode) {
@@ -108,6 +111,7 @@ export class NetworkManager {
             } else {
                 this.visuallyGroupNodesInNetwork(network);
             }
+            return network;
         } else {
             // Case 2: Nodes are NOT in the same network - No change needed for network structure
             this.logger.debug("Nodes not in the same network, no network change.");

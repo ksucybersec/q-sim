@@ -1,6 +1,6 @@
 import logging
 import aiofiles  # Library for async file operations
-from fastapi import APIRouter, Body, HTTPException, Response, Request, status
+from fastapi import APIRouter, Body, HTTPException, Header, Response, Request, status
 from typing import Any, List, Optional
 
 from pydantic import ValidationError
@@ -38,7 +38,7 @@ async def get_connection_config_presets():
 @topology_router.put("/{topology_id}", status_code=status.HTTP_201_CREATED)
 @topology_router.put("/", status_code=status.HTTP_201_CREATED)
 async def update_topology(
-    topology_data: WorldModal = Body(), topology_id: Optional[str] = None
+    topology_data: WorldModal = Body(), topology_id: Optional[str] = None, owner=Header(None, alias='Authorization')
 ):
     """
     Receives topology data (expected as JSON in the request body),
@@ -49,7 +49,7 @@ async def update_topology(
 
     Returns the saved data.
     """
-
+    topology_data.owner = owner
     try:
         if topology_id:
             topology_data = update_world_in_redis(topology_id, topology_data.model_dump())
@@ -73,11 +73,12 @@ async def update_topology(
 @topology_router.get(
     "/{topology_id}", status_code=status.HTTP_200_OK
 )
-async def get_topology(topology_id: str):
+async def get_topology(topology_id: str, owner=Header(None, alias='Authorization')):
     """
     Reads the topology data from the network file asynchronously
     and returns its content directly.
     """
+
     try:
         world = get_topology_from_redis(topology_id)
         if not world:
@@ -106,13 +107,13 @@ async def get_topology(topology_id: str):
 
 
 @topology_router.get('/')
-async def list_all_topologies():
+async def list_all_topologies(owner=Header(None, alias='Authorization')):
     """
     Lists all topologies available in the Redis database.
     """
     try:
         # Assuming you have a function to list all topologies
-        topologies = get_all_topologies_from_redis()
+        topologies = get_all_topologies_from_redis(owner=owner)
         return topologies
 
     except ValidationError as e:

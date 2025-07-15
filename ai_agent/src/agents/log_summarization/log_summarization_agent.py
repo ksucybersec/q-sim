@@ -172,7 +172,7 @@ class LogSummarizationAgent(BaseAgent):
                 tools=self.tools,
                 verbose=True,
                 return_intermediate_steps=True,
-                handle_parsing_errors=True,
+                handle_parsing_errors="Strictly follow to 'RESPONSE FORMAT' given in prompt",
                 max_iterations=5,
                 early_stopping_method="force",
             )
@@ -188,6 +188,7 @@ class LogSummarizationAgent(BaseAgent):
                     }
                 )
                 if "output" in response:
+                    self.save_agent_response(response)
                     return response["output"]
                 else:
                     return {"summary": "Failed to generate structured output."}
@@ -237,7 +238,7 @@ class LogSummarizationAgent(BaseAgent):
                 tools=self.tools,
                 verbose=True,
                 return_intermediate_steps=True,
-                handle_parsing_errors=True,
+                handle_parsing_errors="Strictly follow to 'RESPONSE FORMAT' given in prompt",
                 max_iterations=5,
                 early_stopping_method="force",
             )

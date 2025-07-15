@@ -6,6 +6,7 @@ import numpy as np
 from typing import TYPE_CHECKING, Union
 
 # from core.base_classes import Node
+from core.enums import SimulationEventType
 from core.exceptions import QubitLossError
 from core.s_object import Sobject
 
@@ -53,7 +54,12 @@ class QuantumChannel(Sobject):
             loss_prob = 1 - (1 - self.loss_per_km) ** length_km
             loss_prod_rand = random.random()
             if loss_prod_rand < loss_prob:
-                self.logger.error(f"Qubit lost during transmission in connection {self.name} over {length_km} km. Loss probability: {loss_prob:.2f}. Random value: {loss_prod_rand:.2f}")
+                reason = f"Qubit lost during transmission in connection {self.name} over {length_km} km. (Loss probability: {loss_prob:.2f})"
+                self.logger.error(f"{reason} Loss probability: {loss_prob:.2f}. Random value: {loss_prod_rand:.2f}")
+                self._send_update(
+                    SimulationEventType.QUBIT_LOST,
+                    reason=reason
+                )
                 raise QubitLossError(self, qubit)
 
             # Apply noise to the qubit (using QuTiP)
@@ -64,12 +70,15 @@ class QuantumChannel(Sobject):
         # Send the qubit to the destination node
         to_node = self.node_2 if self.node_1 == from_node else self.node_1
         
-        to_node.receive_qubit(noisy_qubit)
+        to_node.receive_qubit(noisy_qubit, self)
 
     def log(self, message: str) -> None:
         """Simple logging function - to be updated later"""
         print(f"[QuantumChannel] {message}")
 
+    def get_other_node(self, node):
+        return self.node_2 if self.node_1 == node else self.node_1
+    
     def apply_noise(self, qubit: qt.Qobj, noise_strength: float = None) -> qt.Qobj:
         """Apply noise based on the channel's noise model"""
         if noise_strength is None:
