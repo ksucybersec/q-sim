@@ -1,9 +1,10 @@
 import json
-from typing import Optional
+from typing import Any, Dict, Literal, Optional
 
 from pydantic import BaseModel, Field, conint
 
 from ai_agent.src.agents.base.base_structures import BaseAgentInput
+from data.models.topology.world_model import WorldModal
 
 class VibeCodeInput(BaseAgentInput):
     student_code: str = Field(
@@ -56,3 +57,15 @@ class VibeCodeFunctionOutput(BaseModel):
         le=1.0,
         description="The agent's confidence in the accuracy and relevance of the response."
     )
+
+
+class LabPeerAgentInput(BaseAgentInput):
+    lab_instructions: Dict[str, Any] = Field(..., description="Detailed instructions provided by the peer for the lab.")
+    current_topology: Optional[WorldModal] = Field(None, description="Current topology information for the lab.")
+
+
+class LabPeerAgentOutput(BaseModel):
+    response: str = Field(..., description="Response to the peer's question.")
+    confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="The agent's confidence in the accuracy and relevance of the response.")
+    thought_process: str = Field(..., description="The agent's thought process leading to the answer.")
+    response_type: Literal["direct_answer", "guided_discovery", "hint"] = Field("direct_answer", description="Type of response provided by the agent.")

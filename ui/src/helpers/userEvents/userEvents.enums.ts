@@ -45,6 +45,7 @@ export enum UserEventType {
   // Lab Activities
   LAB_START = "lab_start",
   LAB_COMPLETE = "lab_complete",
+  LAB_CANCEL = "lab_cancel",
   LAB_STEP_COMPLETE = "lab_step_complete",
   INSTRUCTIONS_VIEW = "instructions_view",
   TIPS_VIEW = "tips_view",

@@ -12,3 +12,4 @@ class AgentTaskType(Enum):
     ROUTING = "routing"
     VALIDATE_TOPOLOGY = "validate_topology"
     LAB_CODE_ASSIST = "lab_code_assist"
+    LAB_PEER = "lab_peer"

@@ -302,9 +302,9 @@ export function AIAgentsPanel() {
         };
         setMessages(prevMessages => [...prevMessages, userMessage]);
 
-        sendAIAgentMessageSentEvent(userMessage.content, conversationID)
+        sendAIAgentMessageSentEvent(chatRequest)
         const response = await api.sendAgentMessage(agentRequest)
-        sendAiAgentResponseReceivedEvent(JSON.stringify(response), conversationID)
+        sendAiAgentResponseReceivedEvent(response, chatRequest)
 
         await handleReceivedMessage(agentId, response, agentTask);
     };

@@ -1,10 +1,15 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from redis_om import JsonModel, Field
 from datetime import datetime
 
+from ai_agent.src.agents.base.enums import AgentTaskType
+from ai_agent.src.consts.agent_type import AgentType
+from config.config import get_config
 from data.models.connection.redis import get_redis_conn
 from data.models.events.event_enum import UserEventType
 from data.models.topology.node_model import HOST_TYPES
+
+config = get_config()
 
 class UserEventModal(JsonModel):
     # Core Event Data
@@ -12,6 +17,11 @@ class UserEventModal(JsonModel):
     session_id: str = Field(index=True)
     event_type: UserEventType = Field(index=True)
     timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+    # Config Environment
+    ai_enabled : Optional[bool] = Field(default=config.control_config.enable_ai_feature)
+    llm_model_name : Optional[str] = Field(default=config.llm.model)
+    lite_llm_model_name : Optional[str] = Field(default=config.llm.lite_model)
     
     # Context
     page_url: Optional[str] = None
@@ -30,12 +40,15 @@ class UserEventModal(JsonModel):
     component_id: Optional[str] = None
     connection_from: Optional[str] = None
     connection_to: Optional[str] = None
-    lab_step: Optional[int] = None
+    lab_step: Optional[Union[int, str]] = None
     lab_progress: Optional[float] = None
     
     # AI Help Analytics
     agent_message: Optional[str] = None
-    agent_response: Optional[str] = None
+    agent_response: Optional[Dict[str, Any]] = None
+    agent_id: Optional[AgentType] = None
+    task_id: Optional[AgentTaskType] = None
+    ai_message_extra_data: Optional[Dict[str, Any]] = None
     conversation_context: Optional[Dict[str, Any]] = None
     help_category: Optional[str] = None  # "conceptual", "procedural", "troubleshooting"
     help_effectiveness: Optional[int] = None  # 1-5 rating after task completion

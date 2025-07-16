@@ -1,3 +1,5 @@
+import { ExportDataI } from "@/services/export.interface";
+import { ExerciseI } from "../labs/exercise /exercise";
 import { AgentID, AgentTask } from "./agent-declaration";
 import { AgentResponse } from "./agent_response";
 
@@ -47,4 +49,18 @@ export interface AgentRouterRequest extends ChatRequestI {
 export interface LabAssistantRequest extends ChatRequestI {
     student_code: string
     cursor_line_number: number
-    }
+}
+
+export interface LabPeerAgentInput extends ChatRequestI {
+    lab_instructions: ExerciseI
+    current_topology?: ExportDataI
+}
+
+type ResponseType = "direct_answer" | "guided_discovery" | "hint";
+
+export interface LabPeerAgentOutput {
+  response: string;
+  confidence_score?: number; // Optional, must be between 0.0 and 1.0
+  thought_process: string;
+  response_type: ResponseType;
+}

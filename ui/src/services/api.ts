@@ -162,7 +162,7 @@ const api = {
 
         return (await response.json()) as ServerSimulationStatus;
     },
-    sendAgentMessage: async (message: ChatRequestI) => {
+    sendAgentMessage: async <T = any>(message: ChatRequestI): Promise<T> => {
         const response = await makeFetchCall(SERVER_HOST + `/agent/message`, 'POST', message);
 
         if (!response.ok) {

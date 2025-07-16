@@ -1,3 +1,4 @@
+import { AgentID, AgentTask } from "@/components/ai-agents/agent-declaration";
 import { UserEventType } from "./userEvents.enums";
 
 export interface UserEventData {
@@ -26,12 +27,15 @@ export interface UserEventData {
     component_id?: string;
     connection_from?: string;
     connection_to?: string;
-    lab_step?: number;
+    lab_step?: number | string | null;
     lab_progress?: number;
 
     // AI Help Analytics
     agent_message?: string;
-    agent_response?: string;
+    agent_response?:  Record<string, any>;
+    agent_id?: AgentID;
+    task_id?: AgentTask;
+    ai_message_extra_data?: Record<string, any>;
     conversation_id?: string;
     conversation_context?: Record<string, any>;
     help_category?: string; // "conceptual", "procedural", "troubleshooting"

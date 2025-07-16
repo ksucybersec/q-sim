@@ -104,11 +104,19 @@ export function TopBar({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => (window.location.href = "/")}>New Project</DropdownMenuItem>
-                <DropdownMenuItem onClick={saveCurrentNetwork}>Save</DropdownMenuItem>
+                <ClickEventButton elementType="button" elementDescription="Start New Project">
+                  <DropdownMenuItem onClick={() => (window.location.href = "/")}>New Project</DropdownMenuItem>
+                </ClickEventButton>
+                <ClickEventButton elementType="button" elementDescription="Save Current Network">
+                  <DropdownMenuItem onClick={saveCurrentNetwork}>Save</DropdownMenuItem>
+                </ClickEventButton>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={exportJSONFile}>Export...</DropdownMenuItem>
-                <DropdownMenuItem>Import...</DropdownMenuItem>
+                <ClickEventButton elementType="button" elementDescription="Export Current Network">
+                  <DropdownMenuItem onClick={exportJSONFile}>Export...</DropdownMenuItem>
+                </ClickEventButton>
+                <ClickEventButton elementType="button" elementDescription="Import Current Network">
+                  <DropdownMenuItem>Import...</DropdownMenuItem>
+                </ClickEventButton>
                 <DropdownMenuSeparator />
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Load Saved Topology</DropdownMenuSubTrigger>
@@ -121,14 +129,16 @@ export function TopBar({
                           </DropdownMenuItem>
                           :
                           savedTopologies.map((topology: ExportDataI) => (
-                            <DropdownMenuItem
-                              key={topology.pk}
-                              onClick={() => {
-                                window.location.href = `/?topologyID=${topology.pk}`;
-                              }}
-                            >
-                              {topology.name}
-                            </DropdownMenuItem>
+                            <ClickEventButton elementType="button" elementDescription={"Load Topology - " + topology.pk}>
+                              <DropdownMenuItem
+                                key={topology.pk}
+                                onClick={() => {
+                                  window.location.href = `/?topologyID=${topology.pk}`;
+                                }}
+                              >
+                                {topology.name}
+                              </DropdownMenuItem>
+                            </ClickEventButton>
                           ))
                       }
                     </DropdownMenuSubContent>
@@ -139,19 +149,23 @@ export function TopBar({
 
             {/* New Lab Menu */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 gap-1">
-                  Lab <ChevronDown className="h-4 w-4" />
-                  <Badge className="ml-1 h-5 bg-blue-600 hover:bg-blue-700">
-                    {completedLabs.length}/{EXERCISES.length}
-                  </Badge>
-                </Button>
-              </DropdownMenuTrigger>
+              <ClickEventButton elementType="button" elementDescription="Lab Drop Down">
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1">
+                    Lab <ChevronDown className="h-4 w-4" />
+                    <Badge className="ml-1 h-5 bg-blue-600 hover:bg-blue-700">
+                      {completedLabs.length}/{EXERCISES.length}
+                    </Badge>
+                  </Button>
+                </DropdownMenuTrigger>
+              </ClickEventButton>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setIsLabPanelOpen(true)}>
-                  <Beaker className="h-4 w-4 mr-2" />
-                  Browse Labs
-                </DropdownMenuItem>
+                <ClickEventButton elementType="button" elementDescription="Open Lab Panel">
+                  <DropdownMenuItem onClick={() => setIsLabPanelOpen(true)}>
+                    <Beaker className="h-4 w-4 mr-2" />
+                    Browse Labs
+                  </DropdownMenuItem>
+                </ClickEventButton>
                 <DropdownMenuSeparator />
                 {
                   EXERCISES.map((exercise) => (
@@ -168,8 +182,8 @@ export function TopBar({
         </div>
 
         <div className="flex items-center gap-2">
-          <ClickEventButton elementType="Simulation Button" elementDescription={isRunning ? "Stop Simulation" : "Start Simulation"} 
-          eventType={isRunning ? UserEventType.SIMULATION_COMPLETE : UserEventType.SIMULATION_START}>
+          <ClickEventButton elementType="Simulation Button" elementDescription={isRunning ? "Stop Simulation" : "Start Simulation"}
+            eventType={isRunning ? UserEventType.SIMULATION_COMPLETE : UserEventType.SIMULATION_START}>
             <Button size="sm" className="h-8 gap-1" onClick={toggleSimulation} variant={isRunning ? "destructive" : "secondary"}>
               {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               {isRunning ? "Stop" : "Run"} Simulation

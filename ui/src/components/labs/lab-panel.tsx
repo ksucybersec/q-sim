@@ -16,6 +16,9 @@ import { ConnectionManager } from "../node/connections/connectionManager"
 import { getSimulationNodeTypeString } from "../node/base/enums"
 import { WebSocketClient } from "@/services/socket"
 import Markdown from "react-markdown"
+import { ClickEventButton } from "@/helpers/components/butonEvent/clickEvent"
+import { UserEventType } from "@/helpers/userEvents/userEvents.enums"
+import { sendLabCompletedEvent, sendLabProgressEvent } from "@/helpers/userEvents/userEvents"
 
 interface LabPanelProps {
   isOpen: boolean
@@ -33,14 +36,14 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
 
   const checkLabCompletion = (labId: string) => {
     const lab = EXERCISES.find((l) => l.id === labId)
-    if (!lab) return false
+    if (!lab) return { completed: false, lastStep: null };
 
     const { requirements } = lab
 
     const currentNetwork = exportToJSON();
     if (!currentNetwork) {
       logger.error("No network found.");
-      return false;
+      return { completed: false, lastStep: null };
     }
 
     const nodeCounts = manager.getAllNodes().reduce((acc: Record<string, number>, node) => {
@@ -66,6 +69,18 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
     const socket = WebSocketClient.getInstance();
     const messagesSent = !requirements.messages || (socket.simulationEventLogs.length ?? 0) >= requirements.messages
 
+    // Determine last completed step in sequence
+    let lastStep = null;
+    if (nodesExist) {
+      lastStep = 'nodes';
+      if (connectionsExist) {
+        lastStep = 'connections';
+        if (messagesSent) {
+          lastStep = 'messages';
+        }
+      }
+    }
+
     const totalRequirements = requirements.nodes.length + requirements.connections.length + (requirements.messages ? 1 : 0);
     const fulfilledRequirements =
       (nodesExist ? requirements.nodes.length : 0) +
@@ -74,13 +89,17 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
 
     updateLabProgress(fulfilledRequirements, totalRequirements);
 
-    return nodesExist && connectionsExist && messagesSent;
+    sendLabProgressEvent(labId, lastStep, fulfilledRequirements)
+
+    const completed = nodesExist && connectionsExist && messagesSent;
+    return completed;
   }
 
   useEffect(() => {
     if (activeLab && checkLabCompletion(activeLab)) {
       if (!completedLabs.includes(activeLab)) {
         setCompletedLabs((prev) => [...prev, activeLab])
+        sendLabCompletedEvent(activeLab)
       }
     }
   }, [simulationState, activeLab, completedLabs])
@@ -143,9 +162,11 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
             <Beaker className="h-5 w-5 text-blue-400" />
             <h2 className="text-xl font-semibold">Quantum Network Labs</h2>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <XCircle className="h-5 w-5" />
-          </Button>
+          <ClickEventButton elementType="button" elementDescription="Close Drop Down">
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <XCircle className="h-5 w-5" />
+            </Button>
+          </ClickEventButton>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
@@ -218,15 +239,21 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                           )}
                         </div>
                         {/* <p className="text-slate-300"> */}
-                          <Markdown>{lab.description}</Markdown>
-                          {/* </p> */}
+                        <Markdown>{lab.description}</Markdown>
+                        {/* </p> */}
                       </div>
 
                       <Tabs defaultValue="instructions" className="flex-1 flex flex-col">
                         <TabsList>
-                          <TabsTrigger value="instructions">Instructions</TabsTrigger>
-                          <TabsTrigger value="tips">Tips & Hints</TabsTrigger>
-                          <TabsTrigger value="requirements">Requirements</TabsTrigger>
+                          <ClickEventButton eventType={UserEventType.INSTRUCTIONS_VIEW} elementDescription="View Instructions" elementType="button" extraInfo={{lab_id: lab.id }}>
+                            <TabsTrigger value="instructions">Instructions</TabsTrigger>
+                          </ClickEventButton>
+                          <ClickEventButton eventType={UserEventType.TIPS_VIEW} elementDescription="View Tips & Hints" elementType="button" extraInfo={{lab_id: lab.id }}>
+                            <TabsTrigger value="tips">Tips & Hints</TabsTrigger>
+                          </ClickEventButton>
+                          <ClickEventButton eventType={UserEventType.REQUIREMENTS_VIEW} elementDescription="View Requirements" elementType="button" extraInfo={{lab_id: lab.id }}>
+                            <TabsTrigger value="requirements">Requirements</TabsTrigger>
+                          </ClickEventButton>
                           {lab.coding?.enabled && (
                             <TabsTrigger value="code">
                               <Code className="h-3 w-3 mr-1" />
@@ -367,21 +394,25 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
                             Completed
                           </Button>
                         ) : activeLab === lab.id ? (
-                          <Button variant="destructive" onClick={() => onLabCancel()}>
-                            Cancel Lab
-                          </Button>
+                          <ClickEventButton eventType={UserEventType.LAB_CANCEL} elementDescription="Cancel a Lab" elementType="Cancel Lab Button" extraInfo={{ lab_id: lab.id }}>
+                            <Button variant="destructive" onClick={() => onLabCancel()}>
+                              Cancel Lab
+                            </Button>
+                          </ClickEventButton>
                         ) : (
-                          <Button
-                            className="gap-2 bg-green-500"
-                            onClick={() => {
-                              setActiveLab(lab.id)
-                              onStartLab(lab.id)
-                              onClose()
-                            }}
-                          >
-                            Start Lab
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
+                          <ClickEventButton eventType={UserEventType.LAB_START} elementDescription="Started a Lab" elementType="Start Lab Button" extraInfo={{ lab_id: lab.id }}>
+                            <Button
+                              className="gap-2 bg-green-500"
+                              onClick={() => {
+                                setActiveLab(lab.id)
+                                onStartLab(lab.id)
+                                onClose()
+                              }}
+                            >
+                              Start Lab
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          </ClickEventButton>
                         )}
                       </div>
                     </>

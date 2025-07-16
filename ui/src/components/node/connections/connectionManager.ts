@@ -75,6 +75,8 @@ export class ConnectionManager {
             if (!(obj instanceof SimulatorNode) || (obj === from)) {
                 return
             }
+            console.log('Inside of', line.isInsideOf(obj))
+            console.log('Connection acceptable',  obj.isConnectionAcceptable(from), obj.name)
             if (line.isInsideOf(obj) && obj.isConnectionAcceptable(from)) {
                 try {
                     this.onConnection(line, from, obj);

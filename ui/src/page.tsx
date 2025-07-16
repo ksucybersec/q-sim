@@ -27,6 +27,7 @@ import { Button } from "./components/ui/button"
 import { X } from "lucide-react"
 import { Input } from "./components/ui/input"
 import { sendLoginEvent } from "./helpers/userEvents/userEvents"
+import LabPeerChatbot from "./components/ai-agents/lab-peer/lab-peer-chatbot"
 
 type TabIDs = 'logs' | 'details' | 'messages' | 'json-view' | 'code-editor' | string
 
@@ -393,8 +394,8 @@ export default function QuantumNetworkSimulator() {
           <div className="bg-slate-900 border border-slate-700 rounded-lg w-150 flex flex-col p-4">
             <div className="flex items-center justify-between p-3 border-b border-slate-700">
               <div>
-                <h2 className="text-lg font-medium">Enter Your Username</h2>
-                <h3 className="text-sm italic text-gray-600">Will automatically be created for new users</h3>
+                <h2 className="text-lg font-medium">Choose Your Username</h2>
+                <h3 className="text-sm italic text-gray-600">We'll create your account automatically</h3>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setIsUsernameModalOpen(false)}>
                 <X className="h-5 w-5" />
@@ -411,6 +412,12 @@ export default function QuantumNetworkSimulator() {
             </div>
           </div>
         </div>}
+
+      {/* Lab Peer Chatbot */}
+      {
+        activeLabObject &&
+        <LabPeerChatbot activeLab={activeLabObject} />
+      }
     </div>
   )
 }

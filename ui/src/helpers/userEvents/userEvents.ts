@@ -1,8 +1,9 @@
-import { debounce, uniqueId } from "lodash";
+import { debounce, omit, uniqueId } from "lodash";
 import simulationState from "../utils/simulationState";
 import { UserEventData } from "./userEvents.interface";
 import { UserEventType } from "./userEvents.enums";
 import api from "@/services/api";
+import { ChatRequestI } from "@/components/ai-agents/message.interface";
 
 const sessionID = uniqueId(Date.now().toString());
 
@@ -13,7 +14,8 @@ export function getBaseEvent(event_type: UserEventType): UserEventData {
         event_type: event_type,
         timestamp: Date.now(),
         world_id: simulationState.getWorldId() as string,
-        simulation_id: simulationState.getSimulationID() as string
+        simulation_id: simulationState.getSimulationID() as string,
+        page_url: location.toString()
     }
 }
 
@@ -70,18 +72,27 @@ export function sendComponentDisconnectedEvent(from: string, to: string) {
     api.sendUserEvent(event)
 }
 
-export function sendAIAgentMessageSentEvent(message: string, conversation_id: string) {
+export function sendAIAgentMessageSentEvent(chatRequest:ChatRequestI) {
     const event = getBaseEvent(UserEventType.AI_AGENT_MESSAGE)
-    event.agent_message = message
-    event.conversation_id = conversation_id
+    event.agent_message = chatRequest.user_query
+    event.conversation_id = chatRequest.conversation_id
+    event.agent_id  = chatRequest.agent_id
+    event.task_id  = chatRequest.task_id
+
+    event.ai_message_extra_data = omit(chatRequest, ['agent_id', 'task_id', 'conversation_id', 'user_query'])
 
     api.sendUserEvent(event)
 }
 
-export function sendAiAgentResponseReceivedEvent(response: string, conversation_id: string) {
+export function sendAiAgentResponseReceivedEvent(response: Object, chatRequest:ChatRequestI) {
     const event = getBaseEvent(UserEventType.AI_AGENT_RESPONSE)
     event.agent_response = response
-    event.conversation_id = conversation_id
+    event.agent_message = chatRequest.user_query
+    event.conversation_id = chatRequest.conversation_id
+    event.agent_id  = chatRequest.agent_id
+    event.task_id  = chatRequest.task_id
+
+    event.ai_message_extra_data = omit(chatRequest, ['agent_id', 'task_id', 'conversation_id', 'user_query'])
 
     api.sendUserEvent(event)
 }
@@ -92,6 +103,22 @@ export function sendParameterChangedEvent(parameterName: string, oldValue: strin
     event.parameter_name = parameterName
     event.old_value = oldValue
     event.new_value = newValue
+
+    api.sendUserEvent(event)
+}
+
+export function sendLabCompletedEvent(labId: string) {
+    const event = getBaseEvent(UserEventType.LAB_COMPLETE)
+    event.lab_id = labId
+
+    api.sendUserEvent(event)
+}
+
+export function sendLabProgressEvent(labId: string, stepCompleted: string | null, progress: number) {
+    const event = getBaseEvent(UserEventType.LAB_STEP_COMPLETE)
+    event.lab_id = labId
+    event.lab_progress = progress
+    event.lab_step = stepCompleted
 
     api.sendUserEvent(event)
 }

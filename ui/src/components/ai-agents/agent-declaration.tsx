@@ -36,7 +36,8 @@ export enum AgentTask {
     EXTRACT_PATTERNS = "extract_patterns",
     OPTIMIZE_TOPOLOGY = "optimize_topology",
     SYNTHESIZE_TOPOLOGY = "synthesize_topology",
-    TOPOLOGY_QNA = "topology_qna"
+    TOPOLOGY_QNA = "topology_qna",
+    LAB_PEER = "lab_peer"
 }
 
 export const AGENT_DEFINITION: AgentI[] = [

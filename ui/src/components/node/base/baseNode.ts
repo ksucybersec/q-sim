@@ -2,7 +2,6 @@ import * as fabric from 'fabric';
 import { getNodeFamily, SimulationNodeType } from './enums';
 import { debounce } from '../../../helpers/utils/debounce';
 import { NodeI } from '@/services/export.interface';
-import { manager } from '../nodeManager';
 import { getNewNode } from '@/components/canvas/utils';
 // import { getConnectionInstance } from '../connections/instance';
 
@@ -320,6 +319,10 @@ export class SimulatorNode extends fabric.Group {
 
     isConnectionAcceptable(from: SimulatorNode): boolean {
         if (from == this) return false;
+
+        if (from.nodeType === SimulationNodeType.QUANTUM_ADAPTER) {
+            return from.isConnectionAcceptable(this)
+        }
 
         if (getNodeFamily(from.nodeType) !== getNodeFamily(this.nodeType)) return false;
         return true;
