@@ -14,6 +14,7 @@ from langchain.agents import create_structured_chat_agent, AgentExecutor
 from ai_agent.src.agents.base.base_agent import AgentTask, BaseAgent
 from ai_agent.src.agents.base.enums import AgentTaskType
 from ai_agent.src.agents.topology_agent.examples import SYNTHESIZE_EXAMPLES, TOPOLOGY_OPTIMIZE_EXAMPLES
+from ai_agent.src.agents.topology_agent.parser import convert_simplified_to_complex_with_layout
 from ai_agent.src.agents.topology_agent.prompt import (
     TOPOLOGY_GENERATOR_AGENT,
     TOPOLOGY_OPTIMIZER_PROMPT,
@@ -22,6 +23,7 @@ from ai_agent.src.agents.topology_agent.prompt import (
 from ai_agent.src.agents.topology_agent.structure import (
     OptimizeTopologyOutput,
     OptimizeTopologyRequest,
+    SimplifiedTopology,
     SynthesisTopologyOutput,
     SynthesisTopologyRequest,
     TopologyQnAOutput,
@@ -131,17 +133,25 @@ class TopologyAgent(BaseAgent):
             finish_agent_turn(turn.pk, AgentExecutionStatus.SUCCESS, validated_output.copy())
             validated_output['message_id'] = turn.pk
 
-            if task_id == AgentTaskType.SYNTHESIZE_TOPOLOGY:
-                result.generated_topology.temporary_world = True
-                result.generated_topology = save_world_to_redis(result.generated_topology)
-            elif task_id == AgentTaskType.OPTIMIZE_TOPOLOGY:
-                result.optimized_topology.temporary_world = True
-                result.optimized_topology = save_world_to_redis(result.optimized_topology)
+            if task_id == AgentTaskType.SYNTHESIZE_TOPOLOGY or task_id == AgentTaskType.OPTIMIZE_TOPOLOGY:
+                print("================>", type(result), type(result.generated_topology))
+                if isinstance(result.generated_topology, SimplifiedTopology):
+                    print("Simplified topology found")
+                    generated_topology = convert_simplified_to_complex_with_layout(result)
+                elif isinstance(result.generated_topology, WorldModal):
+                    print("WorldModal found")
+                    generated_topology = result.generated_topology
+                else:
+                    raise ValueError("Unsupported generated topology type")
+                generated_topology.temporary_world = True
+                generated_topology = save_world_to_redis(generated_topology)
+                result.generated_topology = generated_topology
+                validated_output =  self.validate_output(task_id, result)
         return validated_output
 
     async def synthesize_topology(
         self, input_data: Union[Dict[str, Any], SynthesisTopologyRequest]
-    ):
+    ) -> Union[SynthesisTopologyOutput, None]:
         if isinstance(input_data, Dict):
             # Implement the logic to optimize the topology based on the provided instructions
             input_data = SynthesisTopologyRequest(**input_data)
@@ -161,9 +171,7 @@ class TopologyAgent(BaseAgent):
         )
 
         if self.llm:
-            llm_with_tools = self.llm.bind_tools(self.tools)
-
-            agent = create_structured_chat_agent(llm_with_tools, self.tools, prompt)
+            agent = create_structured_chat_agent(self.llm, [], prompt)
 
             agent_executor = AgentExecutor(
                 agent=agent,
@@ -177,7 +185,7 @@ class TopologyAgent(BaseAgent):
             try:
                 agent_input = {
                     "user_instructions": input_data.user_query,
-                    "answer_instructions": format_instructions,
+                    # "answer_instructions": format_instructions,
                     "input": input_data.user_query,
                     'regeneration_feedback_from_validation': input_data.regeneration_feedback,
                 }

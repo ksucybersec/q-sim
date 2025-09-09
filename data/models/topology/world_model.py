@@ -5,6 +5,7 @@ from pydantic import Field
 from redis_om import JsonModel, Field as RedisField, Migrator
 
 from data.models.connection.redis import get_redis_conn
+# from data.models.topology.summarizer import generate_topology_summary as generate_topology_summary_logic
 from data.models.topology.zone_model import ZoneModal
 
 
@@ -43,6 +44,9 @@ class WorldModal(JsonModel):
                     if host.name == host_name:
                         return network
         return None
+    
+    # def generate_topology_summary(self) -> str:
+    #     return generate_topology_summary_logic(self)
 
     class Meta:
         global_key_prefix = "network-sim"

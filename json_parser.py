@@ -126,14 +126,22 @@ def parse_json_and_build_network(json_data:Union[str, Dict], on_update_func=None
                 classical_connections[zone.name][network.name][host.name] = []
                 quantum_connections[zone.name][network.name][host.name] = []
 
+
     # Second Pass: Create connections and set references
     for zone_data in world_data['zones']:
         zone = zones[zone_data['name']]
-
+        zone_adapters = [ adapter['name'] for adapter in zone_data['adapters']]
         for network_data in zone_data.get('networks', []):
             network = networks[network_data['name']]
+
             if network.network_type == NetworkType.CLASSICAL_NETWORK:
                 for connection_data in network_data.get('connections', []):
+                    
+                    is_adapter_connection = connection_data['from_node'] in zone_adapters or connection_data['to_node'] in zone_adapters
+                    if is_adapter_connection:
+                        # Adapter Connections are handled in third pass
+                        continue
+
                     conn_config = ConnectionConfig(
                         bandwidth=connection_data['bandwidth'],
                         latency=connection_data['latency'],
@@ -141,7 +149,6 @@ def parse_json_and_build_network(json_data:Union[str, Dict], on_update_func=None
                         packet_error_rate=connection_data.get('packet_error_rate', 0.0),
                         mtu=connection_data.get('mtu', 1500),
                     )
-
                     connection = ClassicConnection(
                         node_1=hosts[connection_data['from_node']],
                         node_2=hosts[connection_data['to_node']],
@@ -153,6 +160,12 @@ def parse_json_and_build_network(json_data:Union[str, Dict], on_update_func=None
 
             elif network.network_type == NetworkType.QUANTUM_NETWORK:
                 for connection_data in network_data.get('connections', []):
+                    
+                    is_adapter_connection = connection_data['from_node'] in zone_adapters or connection_data['to_node'] in zone_adapters
+                    if is_adapter_connection:
+                        # Adapter Connections are handled in third pass
+                        continue
+                    
                     node_1: QuantumNode = hosts[connection_data['from_node']]
                     node_2: QuantumNode = hosts[connection_data['to_node']]
                     connection = QuantumChannel(

@@ -612,18 +612,18 @@ SYNTHESIZE_OUTPUT_EXAMPLE_1 = {
 
 
 SYNTHESIZE_EXAMPLES = [
-    {
-        "input": SynthesisTopologyRequest(**SYNTHESIZE_INPUT_EXAMPLE).model_dump_json(),
-        "output": SynthesisTopologyOutput(
-            **SYNTHESIZE_OUTPUT_EXAMPLE
-        ).model_dump_json(),
-    },
-    {
-        "input": SynthesisTopologyRequest(
-            **SYNTHESIZE_INPUT_EXAMPLE_1
-        ).model_dump_json(),
-        "output": SynthesisTopologyOutput(
-            **SYNTHESIZE_OUTPUT_EXAMPLE_1
-        ).model_dump_json(),
-    },
+    # {
+    #     "input": SynthesisTopologyRequest(**SYNTHESIZE_INPUT_EXAMPLE).model_dump_json(),
+    #     "output": SynthesisTopologyOutput(
+    #         **SYNTHESIZE_OUTPUT_EXAMPLE
+    #     ).model_dump_json(),
+    # },
+    # {
+    #     "input": SynthesisTopologyRequest(
+    #         **SYNTHESIZE_INPUT_EXAMPLE_1
+    #     ).model_dump_json(),
+    #     "output": SynthesisTopologyOutput(
+    #         **SYNTHESIZE_OUTPUT_EXAMPLE_1
+    #     ).model_dump_json(),
+    # },
 ]

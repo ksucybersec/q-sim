@@ -27,6 +27,7 @@ export function importFromJSON(jsonData: ExportDataI | string, networkCanvas: fa
         networkManager.deleteAllNetworks();
 
         let hostInfo = new Map<string, SimulatorNode>();
+        const localNetworkInfo = new Set<string>();
 
         // Process zones
         if (data.zones && Array.isArray(data.zones)) {
@@ -35,7 +36,7 @@ export function importFromJSON(jsonData: ExportDataI | string, networkCanvas: fa
                 // Import networks within the zone
                 if (zone.networks && Array.isArray(zone.networks)) {
                     zone.networks.forEach(networkData => {
-                        const zoneHostInfo = createNetworkFromData(networkData, networkCanvas);
+                        const zoneHostInfo = createNetworkFromData(networkData, networkCanvas, localNetworkInfo);
                         if (zoneHostInfo) {
                             hostInfo = new Map([...hostInfo, ...zoneHostInfo]);
                         }
@@ -84,7 +85,7 @@ export function importFromJSON(jsonData: ExportDataI | string, networkCanvas: fa
 
 // Helper functions for import process
 
-function createNetworkFromData(networkData: NetworkI, networkCanvas: fabric.Canvas) {
+function createNetworkFromData(networkData: NetworkI, networkCanvas: fabric.Canvas, localNetworkInfo: Set<string>) {
     try {
         const hostInfo = new Map<string, SimulatorNode>();
         networkData.hosts.forEach((host) => {
@@ -95,6 +96,7 @@ function createNetworkFromData(networkData: NetworkI, networkCanvas: fabric.Canv
             }
         })
         const connectionManager = ConnectionManager.getInstance(networkCanvas);
+        const networkManager =  NetworkManager.getInstance(networkCanvas);
 
         networkData.connections.forEach((conn) => {
             if (!conn?.to_node) { return }
@@ -107,6 +109,13 @@ function createNetworkFromData(networkData: NetworkI, networkCanvas: fabric.Canv
             }
 
             connectionManager.updateConnection(from, { x: to.getX(), y: to.getY() });
+
+            const fromNetwork = networkManager.getNetworkForNode(from);
+            if (fromNetwork&& !localNetworkInfo.has(fromNetwork.name)) {
+                // If a new network is created for the from node, update its name to match the network data name.
+                fromNetwork.name = networkData.name;
+                localNetworkInfo.add(fromNetwork.name);
+            }
 
             connectionManager.updateMetaData(from, to, {
                 lossPerKm: conn.loss_per_km,

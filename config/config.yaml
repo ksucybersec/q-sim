@@ -21,11 +21,11 @@ simulator:
 
 agents:
   agent_validation:
-    enabled: true
+    enabled: false
     regenerate_on_invalid: true
 
 control_config:
-  enable_realtime_log_summary: true
+  enable_realtime_log_summary: false
   enable_ai_feature: true
 
 logging:
