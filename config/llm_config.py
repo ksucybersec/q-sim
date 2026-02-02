@@ -11,7 +11,8 @@ class LLMConfig(BaseModel):
     timeout: int = 60
     temperature: float = Field(0.2, ge=0.0, le=1.0)
     max_tokens: Optional[int] = 1000
-    retry_attempts: int = 3
+    retry_attempts: int = 2
+    use_llama: bool = False
 
     # LangChain Config
     langchain_api_key: Optional[SecretStr] = None
@@ -22,6 +23,7 @@ class LLMConfig(BaseModel):
 class AgentValidationConfig(BaseModel):
     enabled: bool = True
     regenerate_on_invalid: bool = True
+    max_retry: int = 2
 
 class AgentConfig(BaseModel):
     agent_validation: AgentValidationConfig

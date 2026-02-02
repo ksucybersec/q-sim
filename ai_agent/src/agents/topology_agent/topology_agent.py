@@ -1,3 +1,4 @@
+import json
 from logging import getLogger
 import traceback
 from typing import Any, Dict, Union
@@ -20,6 +21,7 @@ from ai_agent.src.agents.topology_agent.prompt import (
     TOPOLOGY_OPTIMIZER_PROMPT,
     TOPOLOGY_QNA_PROMPT,
 )
+from ai_agent.src.agents.topology_agent.validator import validate_static_topology
 from ai_agent.src.agents.topology_agent.structure import (
     OptimizeTopologyOutput,
     OptimizeTopologyRequest,
@@ -93,6 +95,19 @@ class TopologyAgent(BaseAgent):
             result = await self.synthesize_topology(validated_input)
             config = get_config()
 
+            if result.success:
+                validated_response = validate_static_topology(result.generated_topology)
+
+                if not validated_response['is_valid']:
+                    if input_data['retry_count'] >= config.agents.agent_validation.max_retry:
+                        result.success = False
+                        result.error = "Max retry count reached."
+                        result.overall_feedback = "Synthesis failed due to validation errors."
+                        return result
+                    input_data['regeneration_feedback'] = '\n'.join(validated_response['errors'])
+                    input_data['retry_count'] += 1
+                    return await self.run(task_id, input_data)
+
 
             if config.agents.agent_validation.enabled:
                 # validate the synthesis result with the validation agent
@@ -133,7 +148,7 @@ class TopologyAgent(BaseAgent):
             finish_agent_turn(turn.pk, AgentExecutionStatus.SUCCESS, validated_output.copy())
             validated_output['message_id'] = turn.pk
 
-            if task_id == AgentTaskType.SYNTHESIZE_TOPOLOGY or task_id == AgentTaskType.OPTIMIZE_TOPOLOGY:
+            if task_id == AgentTaskType.SYNTHESIZE_TOPOLOGY:
                 print("================>", type(result), type(result.generated_topology))
                 if isinstance(result.generated_topology, SimplifiedTopology):
                     print("Simplified topology found")
@@ -152,9 +167,17 @@ class TopologyAgent(BaseAgent):
     async def synthesize_topology(
         self, input_data: Union[Dict[str, Any], SynthesisTopologyRequest]
     ) -> Union[SynthesisTopologyOutput, None]:
+    
         if isinstance(input_data, Dict):
             # Implement the logic to optimize the topology based on the provided instructions
             input_data = SynthesisTopologyRequest(**input_data)
+
+        if self.config.dev.enable_mock_responses:
+            with open("docs/sample_files/synthesis_topology_mock_response.json", "r") as f:
+                json_str = f.read()
+                json_obj = json.loads(json_str)
+                return SynthesisTopologyOutput.model_validate(json_obj['action_input'])
+
         parser = PydanticOutputParser(pydantic_object=SynthesisTopologyOutput)
         format_instructions = parser.get_format_instructions()
 
@@ -179,7 +202,7 @@ class TopologyAgent(BaseAgent):
                 verbose=True,
                 return_intermediate_steps=True,
                 handle_parsing_errors=True,
-                max_iterations=5,
+                max_iterations=self.config.llm.retry_attempts,
                 early_stopping_method="force",
             )
             try:
@@ -231,6 +254,13 @@ class TopologyAgent(BaseAgent):
         if isinstance(input_data, Dict):
             # Implement the logic to optimize the topology based on the provided instructions
             input_data = OptimizeTopologyRequest(**input_data)
+
+        if self.config.dev.enable_mock_responses:
+            with open("docs/sample_files/topology_optimizer_mock_response.json", "r") as f:
+                json_str = f.read()
+                json_obj = json.loads(json_str)
+                return OptimizeTopologyOutput.model_validate(json_obj['action_input'])
+
         parser = PydanticOutputParser(pydantic_object=OptimizeTopologyOutput)
         format_instructions = parser.get_format_instructions()
 
@@ -311,6 +341,13 @@ class TopologyAgent(BaseAgent):
         if isinstance(input_data, Dict):
             # Implement the logic to optimize the topology based on the provided instructions
             input_data = TopologyQnARequest(**input_data)
+        
+        if self.config.dev.enable_mock_responses:
+            with open("docs/sample_files/topology_qna_mock_response.json", "r") as f:
+                json_str = f.read()
+                json_obj = json.loads(json_str)
+                return TopologyQnAOutput.model_validate(json_obj['action_input'])
+
         parser = PydanticOutputParser(pydantic_object=TopologyQnAOutput)
         format_instructions = parser.get_format_instructions()
 

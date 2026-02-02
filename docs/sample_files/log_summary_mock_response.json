@@ -1,0 +1,96 @@
+{
+    "action": "Final Answer",
+    "action_input": {
+        "simulation_id": "01K9FZPBQ9CB5G7BJCGQV3XSVN",
+        "summary_period": {
+            "start": "2025-11-07 20:21:47.575500",
+            "end": "2025-11-07 20:22:30.728520"
+        },
+        "short_summary": "The simulation details a successful Quantum Key Distribution (QKD) exchange between DeptA_Adapter and DeptB_Adapter. This shared key was then used to encrypt a classical message 'Hello DepB!' at DeptA_Adapter, send it over the network, and successfully decrypt it at DeptB_Adapter before final delivery to DeptB_Host.",
+        "key_events": [
+            {
+                "timestamp": "2025-11-07 20:21:55.807909",
+                "event_type": "qkd_initiated",
+                "description": "DeptA_Adapter initiated a QKD session with DeptB_Adapter.",
+                "severity": "info"
+            },
+            {
+                "timestamp": "2025-11-07 20:22:14.652633",
+                "event_type": "shared_key_generated",
+                "description": "A shared QKD key was successfully generated at DeptA_Adapter.",
+                "severity": "success"
+            },
+            {
+                "timestamp": "2025-11-07 20:22:17.991203",
+                "event_type": "shared_key_generated",
+                "description": "A matching shared QKD key was successfully generated at DeptB_Adapter.",
+                "severity": "success"
+            },
+            {
+                "timestamp": "2025-11-07 20:22:15.161924",
+                "event_type": "data_encrypted",
+                "description": "Classical data 'Hello DepB!' was encrypted at DeptA_Adapter using the shared key.",
+                "severity": "info"
+            },
+            {
+                "timestamp": "2025-11-07 20:22:20.077131",
+                "event_type": "data_decrypted",
+                "description": "Encrypted data was decrypted at DeptB_Adapter, recovering the message 'Hello DepB!'.",
+                "severity": "info"
+            },
+            {
+                "timestamp": "2025-11-07 20:22:30.728520",
+                "event_type": "classical_data_received",
+                "description": "The final classical message 'Hello DepB!' was received by the end-node DeptB_Host.",
+                "severity": "success"
+            }
+        ],
+        "detailed_summary": {
+            "total_packets_transmitted": 9,
+            "packets_by_source": {
+                "DeptA_Host-DeptA_Router": 1,
+                "Router - 'DeptA_Router' QuantumAdapter - 'DeptA_Adapter' Connection": 1,
+                "QC_Router_Connection": 4,
+                "Router - 'DeptB_Router' QuantumAdapter - 'DeptB_Adapter' Connection": 1,
+                "DeptB_Router-DeptB_Host": 1
+            },
+            "packets_by_destination": {
+                "DeptA_Router": 1,
+                "QC_Router_DeptA_Adapter": 3,
+                "QC_Router_DeptB_Adapter": 4,
+                "DeptB_Router": 1,
+                "DeptB_Host": 1
+            },
+            "communication_flows": [
+                {
+                    "source": "DeptA_Host",
+                    "destination": "DeptB_Host",
+                    "packet_count": 1,
+                    "path": [
+                        "DeptA_Host",
+                        "DeptA_Router",
+                        "QC_Router_DeptA_Adapter",
+                        "QC_Router_Connection",
+                        "QC_Router_DeptB_Adapter",
+                        "DeptB_Router",
+                        "DeptB_Host"
+                    ],
+                    "relevant_log_pks": [
+                        "01K9FZPYPSNVR7DKBG37SQAS9N",
+                        "01K9FZQ2FG18AADCRZKQ2DDHHR",
+                        "01K9FZQ67AGX6XRQAYSWRVFGHF",
+                        "01K9FZQSMSG9SJT8YSTK41K3KB",
+                        "01K9FZQXW3K4S8J149NM0781FH",
+                        "01K9FZQYEDTV9MN87ADF7A0RY8",
+                        "01K9FZR2NVTAWWH9TVZCSFANCD",
+                        "01K9FZR7VR67P4WYA2VG5HD1TJ",
+                        "01K9FZR8V7BSCZQBTB2VB68GXE"
+                    ]
+                }
+            ],
+            "errors_found": 0,
+            "warnings_found": 0,
+            "detected_issues": []
+        }
+    }
+}

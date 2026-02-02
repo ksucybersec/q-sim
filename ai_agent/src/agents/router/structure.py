@@ -16,11 +16,11 @@ class RoutingInput(BaseAgentInput):
 
 class RoutingOutput(BaseAgentOutput):
     """Structured output for agent routing decision."""
-    agent_id: Optional[AgentType] = Field(
+    agent_id: AgentType = Field(
         None,
         description="The unique ID of the selected agent. Null if no suitable agent was found."
     )
-    task_id: Optional[AgentTaskType] = Field(
+    task_id: AgentTaskType = Field(
         description=f"Task ID for the selected agent's selected task. (For example Task ID for summarizing logs is '{AgentTaskType.LOG_SUMMARIZATION.value}' for {AgentType.LOG_SUMMARIZER.value} agent)"
     )
     input_data: Dict[str, Any] = Field(

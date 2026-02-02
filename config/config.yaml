@@ -1,14 +1,15 @@
 # llm_config.yaml
 llm:
-  provider: "openai"
-  model: "gemini-2.5-flash"
-  lite_model: "gemini-2.0-flash"
+  provider: "ollama"
+  model: "llama3.1:8b"
+  lite_model: "llama3.1:8b"
   api_key: "${OPENAI_API_KEY}"
-  base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+  base_url: "http://127.0.0.1:11434/v1"
   timeout: 60
   temperature: 0.2
   max_tokens: 1000
-  retry_attempts: 3
+  retry_attempts: 2
+  use_llama: true
 
   # LangChain Config
   langchain_api_key: "${LANGCHAIN_API_KEY}"
@@ -40,3 +41,6 @@ redis:
   db: 0
   ssl: true
   connection_timeout: 10
+
+dev:
+  enable_mock_responses: False

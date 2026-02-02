@@ -1,6 +1,7 @@
 from enum import Enum
 
 class AgentType(Enum):
+    UNKNOWN_AGENT = "unknown_agent"
     LOG_SUMMARIZER = "log_summarizer"
     TOPOLOGY_DESIGNER = "topology_designer"
     CONGESTION_MONITOR = "congestion_monitor"

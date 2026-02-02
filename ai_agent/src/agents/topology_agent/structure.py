@@ -52,6 +52,10 @@ class SynthesisTopologyRequest(BaseAgentInput):
             "or clarifying ambiguities from the original user_query."
         )
     )
+    retry_count: int = Field(
+        description="The number of times the synthesis has been attempted.",
+        default=0
+    )
 
 class SynthesisTopologyOutput(BaseAgentOutput):
     error: Optional[str] = Field(description="Error message if any occurred during the synthesis.")

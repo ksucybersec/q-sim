@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from typing import Dict, List, Any, Union
 from langchain_openai import ChatOpenAI
@@ -7,6 +6,7 @@ from langchain_core.language_models import BaseChatModel
 from ai_agent.src.agents.base.base_agent import BaseAgent
 from ai_agent.src.consts.agent_type import AgentType
 from ai_agent.src.exceptions.llm_exception import LLMDoesNotExists
+from ai_agent.src.orchestration.instructor_adapter import InstructorAdapter
 from config.config import get_config
 from langchain_ollama import ChatOllama
 
@@ -41,39 +41,44 @@ class AgentManager:
         """Initialize the language model client."""
         api_key = os.getenv("OPENAI_API_KEY") or self.config.llm.api_key
         try:
-            llm = MultiModelChatOpenAI(
-                model_name=self.config.llm.model,
-                temperature=self.config.llm.temperature,
-                api_key=api_key,
-                base_url=self.config.llm.base_url,
-            )
-            lite_llm = ChatOpenAI(
-                model_name=self.config.llm.lite_model or self.config.llm.model,
-                temperature=self.config.llm.temperature,
-                api_key=api_key,
-                base_url=self.config.llm.base_url,
-            )
-            llm.add_sub_model("lite", lite_llm)
-            local_llm = ChatOllama(
-                model="llama3.1:8b",
-                temperature=0,
-                base_url="http://100.119.118.117:11434",
-                format="json",
-            )
-            llm.add_sub_model("local_llm", local_llm)
-            # models = llm.root_client.models.list()
-            # model_exists = any(model.id == self.config.llm.model for model in models)
-
-            # if not model_exists:
-            #     raise ValueError(f"Model '{self.config.llm.model}' not found in the LLM")
-            # print([model.id for model in models])
-
-            # llm = ChatOllama(
-            #     model=self.config.llm.model,
-            #     temperature=self.config.llm.temperature,
-            #     api_key=api_key,
-            #     base_url=self.config.llm.base_url
-            # )
+            if self.config.llm.use_llama:
+                llm = MultiModelChatOpenAI(
+                    model_name=self.config.llm.model,
+                    temperature=self.config.llm.temperature,
+                    api_key=api_key or "dummy", # Prevent error if key missing in local mode
+                    base_url=self.config.llm.base_url,
+                )
+                
+                local_instructor = InstructorAdapter(
+                    base_url=self.config.llm.base_url,
+                    model=self.config.llm.model,
+                    temperature=0
+                )
+                
+                llm.add_sub_model("local_llm", local_instructor)
+                
+                llm.add_sub_model("default", local_instructor)
+            else:
+                llm = MultiModelChatOpenAI(
+                    model_name=self.config.llm.model,
+                    temperature=self.config.llm.temperature,
+                    api_key=api_key,
+                    base_url=self.config.llm.base_url,
+                )
+                lite_llm = ChatOpenAI(
+                    model_name=self.config.llm.lite_model or self.config.llm.model,
+                    temperature=self.config.llm.temperature,
+                    api_key=api_key,
+                    base_url=self.config.llm.base_url,
+                )
+                llm.add_sub_model("lite", lite_llm)
+                local_llm = ChatOllama(
+                    model="llama3.1:8b",
+                    temperature=0,
+                    base_url="http://100.119.118.117:11434",
+                    format="json",
+                )
+                llm.add_sub_model("local_llm", local_llm)
         except Exception as e:
             raise RuntimeError(f"Failed to initialize LLM client: {str(e)}")
 
@@ -92,15 +97,18 @@ class AgentManager:
         """Retrieve an agent by ID."""
         return self.agents.get(agent_id)
 
-    def list_agents(self) -> List[AgentType]:
+    def list_agents(self, exclude_list = []) -> List[AgentType]:
         """List all registered agent IDs."""
-        return list(self.agents.keys())
+        return list(filter(lambda x: x not in exclude_list, self.agents.keys()))
 
     def get_agents_and_capabilities(self) -> List[str]:
         """Get a list of all agents and their capabilities."""
         capabilities = [
-            json.dumps(self.get_agent(agent_id).get_capabilities(), indent=2)
-            for agent_id in self.list_agents()
+            f"""
+            Agent #{i + 1}:
+                {self.get_agent(agent_id).get_capabilities()}
+            """
+            for i, agent_id in enumerate(self.list_agents(exclude_list=[AgentType.ORCHESTRATOR]))
         ]
         return capabilities
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from config.control_config import ControlConfig
 from config.data_config import RedisConfig
+from config.dev_config import DevConfig
 from config.llm_config import AgentConfig, LLMConfig
 from config.simulator_config import SimulationConfig
 
@@ -22,6 +23,7 @@ class AppConfig(BaseSettings):
     agents: AgentConfig
     simulator: SimulationConfig
     control_config: ControlConfig
+    dev: DevConfig
 
     model_config = SettingsConfigDict(env_nested_delimiter="__")
 
@@ -43,7 +45,14 @@ class AppConfig(BaseSettings):
                 yaml_str = yaml_str.replace(placeholder, value)
 
         config_dict = yaml.safe_load(yaml_str)
-        return cls(**config_dict)
+
+        config_obj = cls(**config_dict)
+
+        if config_obj.dev.enable_mock_responses:
+            print("=========== WARNING ===========")
+            print("Loaded configuration with mock responses enabled.")
+
+        return config_obj
 
 
 loaded_config: AppConfig = None

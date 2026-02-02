@@ -13,14 +13,24 @@ class EmbeddingUtil:
     
     def __init__(self, embedding_provider: str = "openai"):
         """Initialize with specified embedding provider"""
-        self.provider = embedding_provider
-        self._embedding_model = None
+        self.config = get_config()
+
+        # Override provider in case of ollama
+        if self.config.llm.provider == "ollama":
+            embedding_provider = "ollama"
+            self.provider = embedding_provider
+            self._embedding_model = "nomic-embed-text:latest"
+        else:
+            self.provider = embedding_provider
+            self._embedding_model = None
         
         # Initialize the embedding model
         if embedding_provider == "openai":
             self._init_openai()
         elif embedding_provider == "huggingface":
             self._init_huggingface()
+        elif embedding_provider == "ollama":
+            self._init_ollama()
         else:
             raise ValueError(f"Unsupported embedding provider: {embedding_provider}")
     
@@ -55,12 +65,31 @@ class EmbeddingUtil:
         except ImportError:
             raise ImportError("Required packages not installed. Install with: pip install torch sentence-transformers")
     
+    def _init_ollama(self):
+        from ollama import Client
+        host = self.config.llm.base_url
+        if host.endswith('/v1'):
+            host = host.replace('/v1', '')
+
+        self.client = Client(host)
+        valid_model = False
+        available_models = self.client.list().models
+        for model in available_models:
+            if model.model == self._embedding_model:
+                valid_model = True
+                break
+        
+        if not valid_model:
+            raise Exception("Embedding model not found in Ollama")
+
     def generate_embedding(self, text: str) -> List[float]:
         """Generate embedding for the given text"""
         if self.provider == "openai":
             return self._generate_openai_embedding(text)
         elif self.provider == "huggingface":
             return self._generate_huggingface_embedding(text)
+        elif self.provider == "ollama":
+            return self._generate_ollama_embeddings(text)
         else:
             raise ValueError(f"Unsupported embedding provider: {self.provider}")
     
@@ -90,6 +119,10 @@ class EmbeddingUtil:
         embedding = self._embedding_model.encode(text)
         return embedding.tolist()
     
+    def _generate_ollama_embeddings(self, text: str) -> List[float]:
+        response = self.client.embed(self._embedding_model, text)
+        return response.embeddings
+
     def format_log_for_embedding(self, log: Union[LogEntry, Dict[str, Any]]) -> str:
         """Format log entry as text for embedding"""
         if isinstance(log, LogEntry):

@@ -10,6 +10,7 @@ from langchain.tools import StructuredTool
 
 from ai_agent.src.agents.base.enums import AgentTaskType
 from ai_agent.src.consts.agent_type import AgentType
+from config import config
 from data.embedding.embedding_util import EmbeddingUtil
 from data.embedding.vector_log import VectorLogEntry
 from data.models.conversation.conversation_model import HistoryItem
@@ -35,20 +36,25 @@ class AgentTask(BaseModel):
 
     task_id: AgentTaskType
     description: str
-    input_schema: Union[Type[BaseModel], Dict[str, Any]]
-    output_schema: Union[Type[BaseModel], Dict[str, Any]]
+    input_schema: Union[Type[BaseModel], Dict[str, Any], None]
+    output_schema: Union[Type[BaseModel], Dict[str, Any], None]
     examples: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
-    def get_model_description(self) -> str:
+    def get_model_description(self, detailed=False) -> str:
         """Generate a description of the input and output models."""
-        return f"""
+        description = f"""
         Task: {self.task_id.value}
         Description: {self.description}
         Input: {self.input_schema.model_json_schema()}
-        Output: {self.output_schema.model_json_schema()}
-        
-        Examples: {self.examples}
         """
+
+        if detailed:
+            description += f"""
+            Output: {self.output_schema.model_json_schema()}
+            
+            Examples: {self.examples}
+            """
+        return description
 
 
 class BaseAgent(ABC):
@@ -59,6 +65,7 @@ class BaseAgent(ABC):
         self.agent_id = agent_id.value
         self.description = description
         self.tasks = self._register_tasks()
+        self.config = config.get_config()
 
         self._get_relevant_logs_tool = StructuredTool.from_function(
             func=self._get_relevant_logs,
@@ -96,16 +103,30 @@ class BaseAgent(ABC):
         """Register all tasks this agent can perform."""
         pass
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> str:
         """Return information about this agent's capabilities."""
-        return {
-            "agent_id": self.agent_id,
-            "description": self.description,
-            "tasks": [
-                f"{task.get_model_description()}"
-                for task_id, task in self.tasks.items()
-            ],
-        }
+        # return {
+        #     "agent_id": self.agent_id,
+        #     "description": self.description,
+        #     "tasks": [
+        #         f"{task.get_model_description()}"
+        #         for task_id, task in self.tasks.items()
+        #     ],
+        # }
+        capability = f"""
+        Agent ID: {self.agent_id}
+        Description: {self.description}
+        Tasks:
+        """
+
+        for idx, (task_id, task) in enumerate(self.tasks.items()):
+            capability += f"""
+            Task #{idx+1}:
+                Task ID: {task_id}
+                Model Description: {task.get_model_description()}
+            """
+
+        return capability
 
     def get_task_details(self, task_id: str) -> Optional[AgentTask]:
         """Get detailed information about a specific task."""
@@ -129,8 +150,10 @@ class BaseAgent(ABC):
         if not task:
             raise ValueError(f"Task {task_id} not supported by this agent")
 
+        if task.input_schema == None:
+            return input_data
         # Validate using Pydantic
-        if isinstance(input_data, task.input_schema):
+        elif isinstance(input_data, task.input_schema):
             validated = input_data
         elif isinstance(input_data, dict):
             validated = task.input_schema(**input_data)
@@ -144,7 +167,9 @@ class BaseAgent(ABC):
         if not task:
             raise ValueError(f"Task {task_id} not supported by this agent")
 
-        if isinstance(output_data, BaseModel):
+        if task.output_schema == None:
+            return output_data
+        elif isinstance(output_data, BaseModel):
             if not isinstance(output_data, task.output_schema):
                 raise Exception(
                     f"output_data is of type {type(output_data)}, expected type ({task.output_schema})"

@@ -1,0 +1,517 @@
+{
+    "action": "Final Answer",
+    "action_input": {
+        "message_id": null,
+        "error": null,
+        "success": true,
+        "original_topology": {
+            "pk": "01K96AY6GXXV13W54RRVB4FP53",
+            "owner": "test_user_1",
+            "name": "My World",
+            "size": [
+                1882.0406190834856,
+                1736.6474579589735
+            ],
+            "zones": [
+                {
+                    "name": "Zone 0",
+                    "type": "SECURE",
+                    "size": [
+                        985.6965328192562,
+                        906.0283057951652
+                    ],
+                    "position": [
+                        796.3440862642292,
+                        730.6191521638082
+                    ],
+                    "networks": [
+                        {
+                            "name": "DeptA_Classical_Net",
+                            "address": "",
+                            "type": "CLASSICAL_NETWORK",
+                            "location": [
+                                796.3440862642292,
+                                730.6191521638082
+                            ],
+                            "hosts": [
+                                {
+                                    "name": "DeptA_Host",
+                                    "type": "ClassicalHost",
+                                    "address": "192.168.1.1",
+                                    "location": [
+                                        897.3930660223812,
+                                        846.0283057951652
+                                    ]
+                                },
+                                {
+                                    "name": "DeptA_Router",
+                                    "type": "ClassicalRouter",
+                                    "address": "192.168.1.2",
+                                    "location": [
+                                        778.4617620454792,
+                                        745.6191521638082
+                                    ]
+                                }
+                            ],
+                            "connections": [
+                                {
+                                    "from_node": "DeptA_Host",
+                                    "to_node": "DeptA_Router",
+                                    "length": 173.35,
+                                    "loss_per_km": 0.0,
+                                    "name": "DeptA_Host-DeptA_Router",
+                                    "noise_model": "none",
+                                    "noise_strength": 0.01,
+                                    "error_rate_threshold": 10.0,
+                                    "qbits": 128,
+                                    "bandwidth": 999999999,
+                                    "latency": 0.0,
+                                    "packet_loss_rate": 0.0,
+                                    "packet_error_rate": 0.0,
+                                    "mtu": 9999999999,
+                                    "connection_config_preset": "none"
+                                }
+                            ]
+                        }
+                    ],
+                    "adapters": []
+                },
+                {
+                    "name": "Zone 1",
+                    "type": "SECURE",
+                    "size": [
+                        176.46529206497752,
+                        200.43601736399688
+                    ],
+                    "position": [
+                        35.99999721695069,
+                        51.995373091174926
+                    ],
+                    "networks": [
+                        {
+                            "name": "DeptB_Classical_Net",
+                            "address": "",
+                            "type": "CLASSICAL_NETWORK",
+                            "location": [
+                                35.99999721695069,
+                                51.995373091174926
+                            ],
+                            "hosts": [
+                                {
+                                    "name": "DeptB_Router",
+                                    "type": "ClassicalRouter",
+                                    "address": "192.168.1.1",
+                                    "location": [
+                                        113.88643464310252,
+                                        170.43601736399688
+                                    ]
+                                },
+                                {
+                                    "name": "DeptB_Host",
+                                    "type": "ClassicalHost",
+                                    "address": "192.168.1.2",
+                                    "location": [
+                                        22.99999721695069,
+                                        66.99537309117494
+                                    ]
+                                }
+                            ],
+                            "connections": [
+                                {
+                                    "from_node": "DeptB_Router",
+                                    "to_node": "DeptB_Host",
+                                    "length": 119.57,
+                                    "loss_per_km": 0.0,
+                                    "name": "DeptB_Router-DeptB_Host",
+                                    "noise_model": "none",
+                                    "noise_strength": 0.01,
+                                    "error_rate_threshold": 10.0,
+                                    "qbits": 128,
+                                    "bandwidth": 999999999,
+                                    "latency": 0.0,
+                                    "packet_loss_rate": 0.0,
+                                    "packet_error_rate": 0.0,
+                                    "mtu": 9999999999,
+                                    "connection_config_preset": "none"
+                                }
+                            ]
+                        }
+                    ],
+                    "adapters": []
+                },
+                {
+                    "name": "Zone 2",
+                    "type": "SECURE",
+                    "size": [
+                        546.2689296770244,
+                        601.159848395332
+                    ],
+                    "position": [
+                        359.2284046127108,
+                        413.8541944926582
+                    ],
+                    "networks": [
+                        {
+                            "name": "Company_Quantum_Backbone",
+                            "address": "",
+                            "type": "QUANTUM_NETWORK",
+                            "location": [
+                                359.2284046127108,
+                                413.8541944926582
+                            ],
+                            "hosts": [
+                                {
+                                    "name": "DeptA_Quantum_Host",
+                                    "type": "QuantumHost",
+                                    "address": "",
+                                    "location": [
+                                        464.7462245988994,
+                                        571.159848395332
+                                    ]
+                                },
+                                {
+                                    "name": "DeptB_Quantum_Host",
+                                    "type": "QuantumHost",
+                                    "address": "",
+                                    "location": [
+                                        323.0091663314608,
+                                        428.8541944926582
+                                    ]
+                                }
+                            ],
+                            "connections": [
+                                {
+                                    "from_node": "DeptA_Quantum_Host",
+                                    "to_node": "DeptB_Quantum_Host",
+                                    "length": 201.06,
+                                    "loss_per_km": 0.0,
+                                    "name": "DeptA_Quantum_Host-DeptB_Quantum_Host",
+                                    "noise_model": "none",
+                                    "noise_strength": 0.01,
+                                    "error_rate_threshold": 10.0,
+                                    "qbits": 128,
+                                    "bandwidth": 999999999,
+                                    "latency": 0.0,
+                                    "packet_loss_rate": 0.0,
+                                    "packet_error_rate": 0.0,
+                                    "mtu": 9999999999,
+                                    "connection_config_preset": "none"
+                                }
+                            ]
+                        }
+                    ],
+                    "adapters": [
+                        {
+                            "name": "DeptA_Adapter",
+                            "type": "QuantumAdapter",
+                            "address": "",
+                            "location": [
+                                636.6094410218276,
+                                710.4443354090411
+                            ],
+                            "quantumHost": "DeptA_Quantum_Host",
+                            "classicalHost": "DeptA_Router",
+                            "classicalNetwork": "DeptA_Classical_Net",
+                            "quantumNetwork": "Company_Quantum_Backbone"
+                        },
+                        {
+                            "name": "DeptB_Adapter",
+                            "type": "QuantumAdapter",
+                            "address": "",
+                            "location": [
+                                216.3392100936886,
+                                289.64400339752564
+                            ],
+                            "quantumHost": "DeptB_Quantum_Host",
+                            "classicalHost": "DeptB_Router",
+                            "classicalNetwork": "DeptB_Classical_Net",
+                            "quantumNetwork": "Company_Quantum_Backbone"
+                        }
+                    ]
+                }
+            ],
+            "temporary_world": false,
+            "lab_world": false
+        },
+        "optimized_topology": {
+            "pk": "01K96AY6GXXV13W54RRVB4FP53",
+            "owner": "test_user_1",
+            "name": "My World",
+            "size": [
+                1882.0406190834856,
+                1736.6474579589735
+            ],
+            "zones": [
+                {
+                    "name": "Zone 0",
+                    "type": "SECURE",
+                    "size": [
+                        985.6965328192562,
+                        906.0283057951652
+                    ],
+                    "position": [
+                        796.3440862642292,
+                        730.6191521638082
+                    ],
+                    "networks": [
+                        {
+                            "name": "DeptA_Classical_Net",
+                            "address": "",
+                            "type": "CLASSICAL_NETWORK",
+                            "location": [
+                                796.3440862642292,
+                                730.6191521638082
+                            ],
+                            "hosts": [
+                                {
+                                    "name": "DeptA_Host",
+                                    "type": "ClassicalHost",
+                                    "address": "192.168.1.1",
+                                    "location": [
+                                        897.3930660223812,
+                                        846.0283057951652
+                                    ]
+                                },
+                                {
+                                    "name": "DeptA_Router",
+                                    "type": "ClassicalRouter",
+                                    "address": "192.168.1.2",
+                                    "location": [
+                                        778.4617620454792,
+                                        745.6191521638082
+                                    ]
+                                }
+                            ],
+                            "connections": [
+                                {
+                                    "from_node": "DeptA_Host",
+                                    "to_node": "DeptA_Router",
+                                    "length": 173.35,
+                                    "loss_per_km": 0.0,
+                                    "name": "DeptA_Host-DeptA_Router",
+                                    "noise_model": "none",
+                                    "noise_strength": 0.01,
+                                    "error_rate_threshold": 10.0,
+                                    "qbits": 128,
+                                    "bandwidth": 999999999,
+                                    "latency": 0.0,
+                                    "packet_loss_rate": 0.0,
+                                    "packet_error_rate": 0.0,
+                                    "mtu": 9999999999,
+                                    "connection_config_preset": "none"
+                                }
+                            ]
+                        }
+                    ],
+                    "adapters": []
+                },
+                {
+                    "name": "Zone 1",
+                    "type": "SECURE",
+                    "size": [
+                        176.46529206497752,
+                        200.43601736399688
+                    ],
+                    "position": [
+                        35.99999721695069,
+                        51.995373091174926
+                    ],
+                    "networks": [
+                        {
+                            "name": "DeptB_Classical_Net",
+                            "address": "",
+                            "type": "CLASSICAL_NETWORK",
+                            "location": [
+                                35.99999721695069,
+                                51.995373091174926
+                            ],
+                            "hosts": [
+                                {
+                                    "name": "DeptB_Router",
+                                    "type": "ClassicalRouter",
+                                    "address": "192.168.1.1",
+                                    "location": [
+                                        113.88643464310252,
+                                        170.43601736399688
+                                    ]
+                                },
+                                {
+                                    "name": "DeptB_Host",
+                                    "type": "ClassicalHost",
+                                    "address": "192.168.1.2",
+                                    "location": [
+                                        22.99999721695069,
+                                        66.99537309117494
+                                    ]
+                                }
+                            ],
+                            "connections": [
+                                {
+                                    "from_node": "DeptB_Router",
+                                    "to_node": "DeptB_Host",
+                                    "length": 119.57,
+                                    "loss_per_km": 0.0,
+                                    "name": "DeptB_Router-DeptB_Host",
+                                    "noise_model": "none",
+                                    "noise_strength": 0.01,
+                                    "error_rate_threshold": 10.0,
+                                    "qbits": 128,
+                                    "bandwidth": 999999999,
+                                    "latency": 0.0,
+                                    "packet_loss_rate": 0.0,
+                                    "packet_error_rate": 0.0,
+                                    "mtu": 9999999999,
+                                    "connection_config_preset": "none"
+                                }
+                            ]
+                        }
+                    ],
+                    "adapters": []
+                },
+                {
+                    "name": "Zone 2",
+                    "type": "SECURE",
+                    "size": [
+                        546.2689296770244,
+                        601.159848395332
+                    ],
+                    "position": [
+                        359.2284046127108,
+                        413.8541944926582
+                    ],
+                    "networks": [
+                        {
+                            "name": "Company_Quantum_Backbone",
+                            "address": "",
+                            "type": "QUANTUM_NETWORK",
+                            "location": [
+                                359.2284046127108,
+                                413.8541944926582
+                            ],
+                            "hosts": [
+                                {
+                                    "name": "DeptA_Quantum_Host",
+                                    "type": "QuantumHost",
+                                    "address": "",
+                                    "location": [
+                                        464.7462245988994,
+                                        571.159848395332
+                                    ]
+                                },
+                                {
+                                    "name": "DeptB_Quantum_Host",
+                                    "type": "QuantumHost",
+                                    "address": "",
+                                    "location": [
+                                        323.0091663314608,
+                                        428.8541944926582
+                                    ]
+                                }
+                            ],
+                            "connections": [
+                                {
+                                    "from_node": "DeptA_Quantum_Host",
+                                    "to_node": "DeptB_Quantum_Host",
+                                    "length": 201.06,
+                                    "loss_per_km": 0.0,
+                                    "name": "DeptA_Quantum_Host-DeptB_Quantum_Host",
+                                    "noise_model": "none",
+                                    "noise_strength": 0.01,
+                                    "error_rate_threshold": 10.0,
+                                    "qbits": 128,
+                                    "bandwidth": 999999999,
+                                    "latency": 0.0,
+                                    "packet_loss_rate": 0.0,
+                                    "packet_error_rate": 0.0,
+                                    "mtu": 9999999999,
+                                    "connection_config_preset": "none"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Backbone_Classical_Net",
+                            "address": "",
+                            "type": "CLASSICAL_NETWORK",
+                            "location": [
+                                359.2284046127108,
+                                413.8541944926582
+                            ],
+                            "hosts": [],
+                            "connections": [
+                                {
+                                    "from_node": "DeptA_Router",
+                                    "to_node": "DeptB_Router",
+                                    "length": 880.0,
+                                    "loss_per_km": 0.0,
+                                    "name": "Direct_Classical_Link",
+                                    "noise_model": "none",
+                                    "noise_strength": 0.01,
+                                    "error_rate_threshold": 10.0,
+                                    "qbits": 128,
+                                    "bandwidth": 10000,
+                                    "latency": 5.0,
+                                    "packet_loss_rate": 0.0,
+                                    "packet_error_rate": 0.0,
+                                    "mtu": 1500,
+                                    "connection_config_preset": "none"
+                                }
+                            ]
+                        }
+                    ],
+                    "adapters": [
+                        {
+                            "name": "DeptA_Adapter",
+                            "type": "QuantumAdapter",
+                            "address": "",
+                            "location": [
+                                636.6094410218276,
+                                710.4443354090411
+                            ],
+                            "quantumHost": "DeptA_Quantum_Host",
+                            "classicalHost": "DeptA_Router",
+                            "classicalNetwork": "DeptA_Classical_Net",
+                            "quantumNetwork": "Company_Quantum_Backbone"
+                        },
+                        {
+                            "name": "DeptB_Adapter",
+                            "type": "QuantumAdapter",
+                            "address": "",
+                            "location": [
+                                216.3392100936886,
+                                289.64400339752564
+                            ],
+                            "quantumHost": "DeptB_Quantum_Host",
+                            "classicalHost": "DeptB_Router",
+                            "classicalNetwork": "DeptB_Classical_Net",
+                            "quantumNetwork": "Company_Quantum_Backbone"
+                        }
+                    ]
+                }
+            ],
+            "temporary_world": false,
+            "lab_world": false
+        },
+        "overall_feedback": "The original topology was missing an explicit, low-latency classical channel between Zone 0 (DeptA) and Zone 1 (DeptB). This is essential for both QKD protocol synchronization and the subsequent transfer of encrypted data. The optimization directly addresses the user's report of high latency by adding a new, high-speed classical link.",
+        "cost": 0.0,
+        "optimization_steps": [
+            {
+                "change_path": [
+                    "zones[2].networks"
+                ],
+                "change": "Added a new 'CLASSICAL_NETWORK' named 'Backbone_Classical_Net' to Zone 2.",
+                "reason": "To provide a logical container for the new inter-zone classical link, separating it from the quantum backbone network.",
+                "citation": null,
+                "comments": "This new network will house the direct classical connection between the two departments."
+            },
+            {
+                "change_path": [
+                    "zones[2].networks[1].connections"
+                ],
+                "change": "Added a new 10 Gbps connection 'Direct_Classical_Link' between 'DeptA_Router' and 'DeptB_Router' with a low latency of 5.0 ms.",
+                "reason": "To directly address the user's instruction to fix 'high latency on the classical link'. This new link provides a dedicated, high-performance path for all classical communication between the two routers, bypassing any implicit, high-latency paths.",
+                "citation": null,
+                "comments": "The original topology lacked this explicit link. The new link has a length of 880.0 km (calculated from router coordinates), 10000 Mbps bandwidth, and an optimized latency of 5.0 ms."
+            }
+        ]
+    }
+}

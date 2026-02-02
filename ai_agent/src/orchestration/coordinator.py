@@ -102,6 +102,30 @@ class Coordinator:
                     }
                 })
                 routing_output = RoutingOutput(**routing_output)
+
+                target_agent_id = routing_output.agent_id
+                target_task_id = routing_output.task_id
+
+                target_agent = self.agent_manager.get_agent(target_agent_id)
+                
+                if not target_agent:
+                    raise LLMError("Target agent not found")
+                
+                target_task = target_agent.tasks[target_task_id]
+                user_query = workflow_data.copy()
+                user_query['task_input_model'] = target_task.input_schema.model_json_schema()
+
+                refined_input = await self._run_agent_task(AgentType.ORCHESTRATOR, {
+                    'task_id': AgentTaskType.REFINE_INPUT,
+                    'input_data': {
+                        'user_query': user_query,
+                        'task_id': target_task_id,
+                    }
+                })
+
+                routing_output.input_data = refined_input
+
+
                 if routing_output.agent_id:
                     agent = self.agent_manager.get_agent(routing_output.agent_id)
                     

@@ -141,6 +141,12 @@ class LogSummarizationAgent(BaseAgent):
                 status_code=400,
                 detail={"message": "No logs provided", "simulation_id": simulation_id},
             )
+        
+        if self.config.dev.enable_mock_responses:
+            with open("docs/sample_files/log_summary_mock_response.json", "r") as f:
+                json_str = f.read()
+                json_obj = json.loads(json_str)
+                return LogSummaryOutput.model_validate(json_obj['action_input'])
 
         focus_components = input_data.get("focus_components")
         user_query = input_data.get("message")
@@ -216,6 +222,13 @@ class LogSummarizationAgent(BaseAgent):
         if isinstance(input_data, Dict):
             # Implement the logic to optimize the topology based on the provided instructions
             input_data = LogQnARequest(**input_data)
+
+        if self.config.dev.enable_mock_responses:
+            with open("docs/sample_files/log_qna_mock_response.json", "r") as f:
+                json_str = f.read()
+                json_obj = json.loads(json_str)
+                return LogQnAOutput.model_validate(json_obj['action_input'])
+
         parser = PydanticOutputParser(pydantic_object=LogQnAOutput)
         format_instructions = parser.get_format_instructions()
 
@@ -239,7 +252,7 @@ class LogSummarizationAgent(BaseAgent):
                 verbose=True,
                 return_intermediate_steps=True,
                 handle_parsing_errors="Strictly follow to 'RESPONSE FORMAT' given in prompt",
-                max_iterations=5,
+                max_iterations=self.config.llm.retry_attempts,
                 early_stopping_method="force",
             )
 
