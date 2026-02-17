@@ -49,13 +49,20 @@ class QuantumChannel(Sobject):
             noise_strength = self.noise_strength
             
         if self.noise_model != 'none':
-            # Simulate the loss based on length and loss_per_km
+            # Simulate photon loss using Beer-Lambert exponential attenuation model
+            # This matches real-world fiber optic physics where:
+            #   - loss_per_km is in dB/km (e.g., 0.2 for standard telecom fiber at 1550nm)
+            #   - Total loss (dB) = loss_per_km * length
+            #   - Survival probability = 10^(-total_loss_dB / 10)
             length_km = self.length
-            loss_prob = 1 - (1 - self.loss_per_km) ** length_km
-            loss_prod_rand = random.random()
-            if loss_prod_rand < loss_prob:
-                reason = f"Qubit lost during transmission in connection {self.name} over {length_km} km. (Loss probability: {loss_prob:.2f})"
-                self.logger.error(f"{reason} Loss probability: {loss_prob:.2f}. Random value: {loss_prod_rand:.2f}")
+            total_loss_dB = self.loss_per_km * length_km
+            survival_prob = 10 ** (-total_loss_dB / 10)
+            loss_prob = 1 - survival_prob
+            
+            loss_rand = random.random()
+            if loss_rand < loss_prob:
+                reason = f"Qubit lost during transmission in connection {self.name} over {length_km} km (loss: {self.loss_per_km} dB/km, total: {total_loss_dB:.2f} dB). Survival probability: {survival_prob:.4f}"
+                self.logger.error(f"{reason}. Random value: {loss_rand:.4f}")
                 self._send_update(
                     SimulationEventType.QUBIT_LOST,
                     reason=reason

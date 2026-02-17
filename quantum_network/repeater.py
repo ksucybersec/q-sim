@@ -70,9 +70,8 @@ class QuantumRepeater(QuantumNode):
 
     def forward(self):
         """Dispatcher for different repeater protocols."""
-        # if self.protocol == "entanglement_swapping":
-        #     self.execute_entanglement_swapping()
-        pass
+        if self.protocol == "entanglement_swapping":
+            self.execute_entanglement_swapping()
 
     def execute_entanglement_swapping(self):
         """Performs entanglement swapping if two qubits are in memory."""

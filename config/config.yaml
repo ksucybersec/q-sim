@@ -4,7 +4,7 @@ llm:
   model: "llama3.1:8b"
   lite_model: "llama3.1:8b"
   api_key: "${OPENAI_API_KEY}"
-  base_url: "http://127.0.0.1:11434/v1"
+  base_url: "http://100.119.118.117:11434/v1"
   timeout: 60
   temperature: 0.2
   max_tokens: 1000

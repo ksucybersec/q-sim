@@ -1,0 +1,15 @@
+# =============================================================================
+# Test Configuration
+# =============================================================================
+# This config is used by the test suite for agent evaluation.
+# It is separate from the main app config (config/config.yaml).
+
+judge_llm:
+  provider: "ollama"
+  model: "maximgattobianco/prometheus-14b:latest"
+  base_url: "http://localhost:11434"
+  temperature: 0.0        # Deterministic judging
+  timeout: 120            # Seconds per judge call (prevents hanging)
+
+reports:
+  output_dir: "reports"   # Relative to the agent's test directory

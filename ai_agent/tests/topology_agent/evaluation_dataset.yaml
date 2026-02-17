@@ -1,0 +1,160 @@
+# =============================================================================
+# Evaluation Dataset for Topology Agent (Synthesis Task)
+# =============================================================================
+# Each test case defines:
+#   - prompt: The user query to send to the agent
+#   - expected: Node counts and types for requirement fulfillment scoring
+#   - logical_assertions: Graph-based checks for logical correctness
+#
+# Assertion types:
+#   - end_to_end_path_exists: A path must connect two nodes (by name/type filter)
+#   - path_traverses_type: The path between two nodes must pass through specific node types
+#   - direct_neighbor_type: A node must be directly connected to a specific type
+#   - min_node_count: Minimum number of nodes of a given type
+# =============================================================================
+
+test_cases:
+
+  # ── 1. Simple Classical Network ────────────────────────────────────────────
+  - id: "simple_classical"
+    prompt: "Create a classical network with 2 hosts connected via a router."
+    expected:
+      node_types:
+        ClassicalHost: 2
+        ClassicalRouter: 1
+      min_networks: 1
+      network_types: ["CLASSICAL_NETWORK"]
+      is_valid: true
+    logical_assertions:
+      - type: "end_to_end_path_exists"
+        from_type: "ClassicalHost"
+        to_type: "ClassicalHost"
+        description: "Both hosts must be reachable from each other"
+
+      - type: "direct_neighbor_type"
+        node_type: "ClassicalHost"
+        neighbor_type: "ClassicalRouter"
+        description: "Each host must connect to a router"
+
+  # ── 2. Secure Quantum Channel (Alice & Bob) ───────────────────────────────
+  - id: "secure_channel"
+    prompt: "Design a secure communication channel for Alice and Bob. Each should have a classical computer connected to a quantum network via their own dedicated adapter."
+    expected:
+      node_types:
+        ClassicalHost: 2
+        ClassicalRouter: 2
+        QuantumHost: 2
+        Adapter: 2
+      min_networks: 3
+      network_types: ["CLASSICAL_NETWORK", "QUANTUM_NETWORK"]
+      is_valid: true
+    logical_assertions:
+      - type: "end_to_end_path_exists"
+        from_name_contains: "Alice"
+        from_type: "ClassicalHost"
+        to_name_contains: "Bob"
+        to_type: "ClassicalHost"
+        description: "Alice and Bob must have an end-to-end path"
+
+      - type: "path_traverses_type"
+        from_name_contains: "Alice"
+        from_type: "ClassicalHost"
+        to_name_contains: "Bob"
+        to_type: "ClassicalHost"
+        must_traverse: ["QuantumHost", "Adapter"]
+        description: "The path must go through quantum nodes and adapters"
+
+      - type: "direct_neighbor_type"
+        node_type: "ClassicalHost"
+        neighbor_type: "ClassicalRouter"
+        description: "Classical hosts must connect to routers, not directly to adapters"
+
+  # ── 3. Hybrid Company Network ─────────────────────────────────────────────
+  - id: "hybrid_company"
+    prompt: "Create a hybrid classical-quantum network simulating a company with two departments connected via a secure quantum backbone."
+    expected:
+      min_node_types:
+        ClassicalHost: 2
+        ClassicalRouter: 2
+        QuantumHost: 2
+        Adapter: 2
+      min_networks: 3
+      network_types: ["CLASSICAL_NETWORK", "QUANTUM_NETWORK"]
+      is_valid: true
+    logical_assertions:
+      - type: "end_to_end_path_exists"
+        from_type: "ClassicalHost"
+        to_type: "ClassicalHost"
+        description: "Department hosts must be able to communicate"
+
+      - type: "path_traverses_type"
+        from_type: "ClassicalHost"
+        to_type: "ClassicalHost"
+        must_traverse: ["QuantumHost", "Adapter"]
+        description: "Inter-department path must use quantum backbone"
+
+      - type: "direct_neighbor_type"
+        node_type: "ClassicalHost"
+        neighbor_type: "ClassicalRouter"
+        description: "Classical hosts connect to routers"
+
+  # ── 4. Long-Distance with Repeater ────────────────────────────────────────
+  - id: "repeater_chain"
+    prompt: "Design a long-distance quantum communication link between two cities. Use quantum repeaters to extend the range. Each city has a classical host with a quantum adapter."
+    expected:
+      min_node_types:
+        ClassicalHost: 2
+        QuantumHost: 2
+        QuantumRepeater: 1
+        Adapter: 2
+      min_networks: 2
+      is_valid: true
+    logical_assertions:
+      - type: "end_to_end_path_exists"
+        from_type: "ClassicalHost"
+        to_type: "ClassicalHost"
+        description: "Cities must be connected end-to-end"
+
+      - type: "path_traverses_type"
+        from_type: "ClassicalHost"
+        to_type: "ClassicalHost"
+        must_traverse: ["QuantumRepeater"]
+        description: "Path must go through at least one repeater"
+
+  # ── 5. Pure Quantum Network ───────────────────────────────────────────────
+  - id: "pure_quantum"
+    prompt: "Create a simple quantum network with 3 quantum hosts connected in a chain."
+    expected:
+      min_node_types:
+        QuantumHost: 3
+      min_networks: 1
+      network_types: ["QUANTUM_NETWORK"]
+      is_valid: true
+    logical_assertions:
+      - type: "end_to_end_path_exists"
+        from_type: "QuantumHost"
+        to_type: "QuantumHost"
+        description: "All quantum hosts must be reachable"
+
+  # ── 6. Multi-Zone Topology ────────────────────────────────────────────────
+  - id: "multi_zone"
+    prompt: "Create a network with 2 separate zones. Zone A has a classical network with 2 hosts. Zone B has a classical network with 1 host. Both zones connect via a quantum link with adapters."
+    expected:
+      min_node_types:
+        ClassicalHost: 3
+        ClassicalRouter: 2
+        QuantumHost: 2
+        Adapter: 2
+      min_zones: 2
+      is_valid: true
+    logical_assertions:
+      - type: "end_to_end_path_exists"
+        from_type: "ClassicalHost"
+        to_type: "ClassicalHost"
+        description: "Hosts across zones must be reachable"
+
+      - type: "path_traverses_type"
+        from_type: "ClassicalHost"
+        to_type: "ClassicalHost"
+        must_traverse: ["Adapter", "QuantumHost"]
+        description: "Cross-zone path must use quantum link"
