@@ -123,13 +123,6 @@ class RouterAgent(BaseAgent):
             self.logger.exception(f"Exception during routing execution!")
             # Fail Gracefully: Return a routing failure object instead of crashing
             raise e
-            return {
-                "agent_id": "orchestrator",
-                "task_id": "routing",
-                "reason": f"Routing failed internally: {str(e)}",
-                "input_data": user_query_obj,
-                "suggestion": "Please try rephrasing your request."
-            }
         
     async def refine_task_input(self, input_data: Dict[str, Any]):
         user_query_obj = input_data.get("user_query")

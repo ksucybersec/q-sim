@@ -42,11 +42,12 @@ async def get_agent_message(message: Dict[str, Any] = Body()):
             conversation_metadata = create_conversation_metadata(validated_message.conversation_id)
 
         add_chat_message(conversation_metadata.pk, MessageRole.USER, message.get('user_query'))
-        response = await agent_to_handler[message['agent_id']](message)
-
+        try:
+            agent = agent_to_handler[message['agent_id']]
+        except KeyError:
+            raise HTTPException(status_code=400, detail=f"Invalid agent type: {message.get('agent_id', 'INVALID_AGENT_ID')}. Available options: {list(agent_to_handler.keys())}")
+        response = await agent(message)
         return response
-    except KeyError  as e:
-        raise HTTPException(status_code=400, detail=f"Invalid agent type: {message.get('agent_id', 'INVALID_AGENT_ID')}")
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

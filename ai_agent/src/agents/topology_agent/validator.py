@@ -106,8 +106,14 @@ def check_port_constraints(adj: Dict, node_map: Dict) -> List[str]:
         if node.type == "QuantumHost":
             if degree != 2:
                 errors.append(f"Port Error: QHost '{name}' has {degree} connections. Must be exactly 2.")
-            elif "Adapter" not in neighbor_types:
-                errors.append(f"Wiring Error: QHost '{name}' is missing connection to an Adapter.")
+            else:
+                adapter_count = neighbor_types.count("Adapter")
+                quantum_link_count = sum(1 for t in neighbor_types if t in ["QuantumHost", "QuantumRepeater"])
+                
+                if adapter_count != 1:
+                    errors.append(f"Wiring Error: QHost '{name}' must have exactly 1 Adapter connection, but has {adapter_count}.")
+                if quantum_link_count != 1:
+                    errors.append(f"Wiring Error: QHost '{name}' must have exactly 1 quantum link connection (to QuantumHost or QuantumRepeater), but has {quantum_link_count}.")
 
         # Case B: Adapter (Strictly 2 connections: 1 Classical, 1 Quantum)
         elif node.type == "Adapter":

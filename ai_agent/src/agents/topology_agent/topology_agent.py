@@ -4,13 +4,7 @@ import traceback
 from typing import Any, Dict, Union
 
 from langchain_openai import ChatOpenAI
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    HumanMessagePromptTemplate,
-    SystemMessagePromptTemplate,
-)
-from langchain.agents import create_structured_chat_agent, AgentExecutor
+from langchain_core.prompts import ChatPromptTemplate
 
 from ai_agent.src.agents.base.base_agent import AgentTask, BaseAgent
 from ai_agent.src.agents.base.enums import AgentTaskType
@@ -95,7 +89,8 @@ class TopologyAgent(BaseAgent):
             result = await self.synthesize_topology(validated_input)
             config = get_config()
 
-            if result.success:
+            # First, validate using static validator (works on SimplifiedTopology)
+            if result.success and isinstance(result.generated_topology, SimplifiedTopology):
                 validated_response = validate_static_topology(result.generated_topology)
 
                 if not validated_response['is_valid']:
@@ -108,7 +103,7 @@ class TopologyAgent(BaseAgent):
                     input_data['retry_count'] += 1
                     return await self.run(task_id, input_data)
 
-
+            # Then, if static validation passed, run validation agent (for LLM-based validation)
             if config.agents.agent_validation.enabled:
                 # validate the synthesis result with the validation agent
                 errors = await self.validation_agent.run(AgentTaskType.VALIDATE_TOPOLOGY, {'generate_response': result})
@@ -144,6 +139,12 @@ class TopologyAgent(BaseAgent):
         # Validate output
         validated_output =  self.validate_output(task_id, result)
 
+        with open('result.json', 'w') as f:
+            json.dump({
+                'input_data': input_data,
+                'validated_output': validated_output,
+            }, f, indent=4)
+
         if turn:
             finish_agent_turn(turn.pk, AgentExecutionStatus.SUCCESS, validated_output.copy())
             validated_output['message_id'] = turn.pk
@@ -169,7 +170,6 @@ class TopologyAgent(BaseAgent):
     ) -> Union[SynthesisTopologyOutput, None]:
     
         if isinstance(input_data, Dict):
-            # Implement the logic to optimize the topology based on the provided instructions
             input_data = SynthesisTopologyRequest(**input_data)
 
         if self.config.dev.enable_mock_responses:
@@ -178,81 +178,38 @@ class TopologyAgent(BaseAgent):
                 json_obj = json.loads(json_str)
                 return SynthesisTopologyOutput.model_validate(json_obj['action_input'])
 
-        parser = PydanticOutputParser(pydantic_object=SynthesisTopologyOutput)
-        format_instructions = parser.get_format_instructions()
+        if not self.llm:
+            raise LLMError("LLM not available")
 
-        system_message_prompt = SystemMessagePromptTemplate.from_template(
-            TOPOLOGY_GENERATOR_AGENT
-        )
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", TOPOLOGY_GENERATOR_AGENT),
+            ("human", "{input}"),
+        ])
 
-        human_message_prompt = HumanMessagePromptTemplate.from_template(
-            "{input}\n\n{agent_scratchpad}"
-        )
+        chain = prompt | self.llm.with_structured_output(SynthesisTopologyOutput)
 
-        prompt = ChatPromptTemplate.from_messages(
-            [system_message_prompt, human_message_prompt]
-        )
+        try:
+            result = await chain.ainvoke({
+                "user_instructions": input_data.user_query,
+                "regeneration_feedback_from_validation": input_data.regeneration_feedback or "None — this is the first attempt.",
+                "input": input_data.user_query,
+            })
 
-        if self.llm:
-            agent = create_structured_chat_agent(self.llm, [], prompt)
-
-            agent_executor = AgentExecutor(
-                agent=agent,
-                tools=self.tools,
-                verbose=True,
-                return_intermediate_steps=True,
-                handle_parsing_errors=True,
-                max_iterations=self.config.llm.retry_attempts,
-                early_stopping_method="force",
-            )
-            try:
-                agent_input = {
-                    "user_instructions": input_data.user_query,
-                    # "answer_instructions": format_instructions,
-                    "input": input_data.user_query,
-                    'regeneration_feedback_from_validation': input_data.regeneration_feedback,
-                }
-                result = agent_executor.invoke(agent_input)
-                final_output_data = result.get("output")
-
-                if isinstance(final_output_data, dict):
-                    # Parse the dictionary into the Pydantic model for validation
-                    parsed_output = SynthesisTopologyOutput.model_validate(
-                        final_output_data
-                    )
-                    print("--- Synthesis Topology Proposal Generated ---")
-                    return parsed_output
-                else:
-                    print(
-                        f"ERROR: Agent returned unexpected final output format: {type(final_output_data)}"
-                    )
-                    print(f"Raw output: {final_output_data}")
-                    # Attempt to parse if it's a string containing JSON (shouldn't happen with correct prompt)
-                    if isinstance(final_output_data, str):
-                        try:
-                            parsed_output = SynthesisTopologyOutput.model_validate_json(
-                                final_output_data
-                            )
-                            print(
-                                "--- Optimization Proposal Generated (Parsed from String) ---"
-                            )
-                            return parsed_output
-                        except Exception as e_parse:
-                            print(
-                                f"ERROR: Failed to parse string output as JSON: {e_parse}"
-                            )
-
-                    return None  # Failed
-            except Exception as e:
-                traceback.print_exc()
-                self.logger.exception(f"Exception during agent execution!")
-                raise LLMError(f"Error during agent execution: {e}")
+            if isinstance(result, SynthesisTopologyOutput):
+                print("--- Synthesis Topology Proposal Generated ---")
+                return result
+            else:
+                self.logger.error(f"Unexpected output type: {type(result)}")
+                return None
+        except Exception as e:
+            traceback.print_exc()
+            self.logger.exception(f"Exception during synthesis!")
+            raise LLMError(f"Error during synthesis: {e}")
 
     async def update_topology(
         self, input_data: Union[Dict[str, Any], OptimizeTopologyRequest]
     ):
         if isinstance(input_data, Dict):
-            # Implement the logic to optimize the topology based on the provided instructions
             input_data = OptimizeTopologyRequest(**input_data)
 
         if self.config.dev.enable_mock_responses:
@@ -261,85 +218,44 @@ class TopologyAgent(BaseAgent):
                 json_obj = json.loads(json_str)
                 return OptimizeTopologyOutput.model_validate(json_obj['action_input'])
 
-        parser = PydanticOutputParser(pydantic_object=OptimizeTopologyOutput)
-        format_instructions = parser.get_format_instructions()
+        if not self.llm:
+            raise LLMError("LLM not available")
 
-        system_message_prompt = SystemMessagePromptTemplate.from_template(
-            TOPOLOGY_OPTIMIZER_PROMPT
-        )
+        # Pre-fetch topology data instead of relying on agent tool call
+        topology_data = self._get_topology_by_world_id(input_data.world_id)
+        if not topology_data:
+            raise ValueError(f"No topology found for world {input_data.world_id}")
 
-        human_message_prompt = HumanMessagePromptTemplate.from_template(
-            "{input}\n\n{agent_scratchpad}"
-        )
-        prompt = ChatPromptTemplate.from_messages(
-            [system_message_prompt, human_message_prompt]
-        )
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", TOPOLOGY_OPTIMIZER_PROMPT),
+            ("human", "{input}"),
+        ])
 
-        if self.llm and self.tools:
-            llm_with_tools = self.llm.bind_tools(self.tools)
+        chain = prompt | self.llm.with_structured_output(OptimizeTopologyOutput)
 
-            agent = create_structured_chat_agent(llm_with_tools, self.tools, prompt)
+        try:
+            result = await chain.ainvoke({
+                "world_id": input_data.world_id,
+                "optional_instructions": input_data.optional_instructions
+                or "None provided. Apply general optimization principles.",
+                "world_instructions": WorldModal.schema_for_fields(),
+                "topology_data": json.dumps(topology_data),
+                "input": f"Optimize topology for world {input_data.world_id} with instructions: {input_data.optional_instructions or 'default principles'}",
+            })
 
-            agent_executor = AgentExecutor(
-                agent=agent,
-                tools=self.tools,
-                verbose=True,
-                return_intermediate_steps=True,
-                handle_parsing_errors=True,
-                max_iterations=5,
-                early_stopping_method="force",
-            )
-
-            try:
-                agent_input = {
-                    "world_id": input_data.world_id,
-                    "optional_instructions": input_data.optional_instructions
-                    or "None provided. Apply general optimization principles.",  # Provide default text if None
-                    "format_instructions": format_instructions,
-                    "world_instructions": WorldModal.schema_for_fields(),
-                    "input": f"Optimize topology for world {input_data.world_id} with instructions: {input_data.optional_instructions or 'default principles'}",
-                }
-                result = agent_executor.invoke(agent_input)
-                final_output_data = result.get("output")
-
-                if isinstance(final_output_data, dict):
-                    # Parse the dictionary into the Pydantic model for validation
-                    parsed_output = OptimizeTopologyOutput.model_validate(
-                        final_output_data
-                    )
-                    print("--- Optimization Proposal Generated ---")
-                    return parsed_output
-                else:
-                    print(
-                        f"ERROR: Agent returned unexpected final output format: {type(final_output_data)}"
-                    )
-                    print(f"Raw output: {final_output_data}")
-                    # Attempt to parse if it's a string containing JSON (shouldn't happen with correct prompt)
-                    if isinstance(final_output_data, str):
-                        try:
-                            parsed_output = OptimizeTopologyOutput.model_validate_json(
-                                final_output_data
-                            )
-                            print(
-                                "--- Optimization Proposal Generated (Parsed from String) ---"
-                            )
-                            return parsed_output
-                        except Exception as e_parse:
-                            print(
-                                f"ERROR: Failed to parse string output as JSON: {e_parse}"
-                            )
-
-                    return None  # Failed
-            except Exception as e:
-                traceback.print_exc()
-                self.logger.exception(f"Exception during agent execution!")
-                raise LLMError(f"Error during agent execution: {e}")
-        else:
-            raise Exception("LLM not available, logs invalid, or no tools defined")
+            if isinstance(result, OptimizeTopologyOutput):
+                print("--- Optimization Proposal Generated ---")
+                return result
+            else:
+                self.logger.error(f"Unexpected output type: {type(result)}")
+                return None
+        except Exception as e:
+            traceback.print_exc()
+            self.logger.exception(f"Exception during optimization!")
+            raise LLMError(f"Error during optimization: {e}")
 
     async def topology_qna(self, input_data: Union[Dict[str, Any], TopologyQnARequest]):
         if isinstance(input_data, Dict):
-            # Implement the logic to optimize the topology based on the provided instructions
             input_data = TopologyQnARequest(**input_data)
         
         if self.config.dev.enable_mock_responses:
@@ -348,82 +264,37 @@ class TopologyAgent(BaseAgent):
                 json_obj = json.loads(json_str)
                 return TopologyQnAOutput.model_validate(json_obj['action_input'])
 
-        parser = PydanticOutputParser(pydantic_object=TopologyQnAOutput)
-        format_instructions = parser.get_format_instructions()
+        if not self.llm:
+            raise LLMError("LLM not available")
 
-        system_message_prompt = SystemMessagePromptTemplate.from_template(
-            TOPOLOGY_QNA_PROMPT
-        )
+        # Pre-fetch all context
+        topology_data = self._get_topology_by_world_id(input_data.world_id)
+        chat_history = self._get_chat_history(input_data.conversation_id, 5)
 
-        human_message_prompt = HumanMessagePromptTemplate.from_template(
-            "{input}\n\n{agent_scratchpad}"
-        )
-        prompt = ChatPromptTemplate.from_messages(
-            [system_message_prompt, human_message_prompt]
-        )
-        
-        if self.llm and self.tools:
-            llm_with_tools = self.llm.bind_tools(self.tools)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", TOPOLOGY_QNA_PROMPT),
+            ("human", "{input}"),
+        ])
 
-            agent = create_structured_chat_agent(llm_with_tools, self.tools, prompt)
+        chain = prompt | self.llm.with_structured_output(TopologyQnAOutput)
 
-            agent_executor = AgentExecutor(
-                agent=agent,
-                tools=self.tools,
-                verbose=True,
-                return_intermediate_steps=True,
-                handle_parsing_errors=True,
-                max_iterations=5,
-                early_stopping_method="force",
-            )
+        try:
+            result = await chain.ainvoke({
+                "world_id": input_data.world_id,
+                "topology_data": json.dumps(topology_data) if topology_data else "No topology data available.",
+                "world_instructions": WorldModal.schema_for_fields(),
+                "user_question": input_data.user_query,
+                "last_5_messages": chat_history,
+                "input": f"Answer the following question about the topology of world {input_data.world_id}: {input_data.user_query}",
+            })
 
-            try:
-                agent_input = {
-                    "world_id": input_data.world_id,
-                    'topology_data': self._get_topology_by_world_id(input_data.world_id),
-                    'conversation_id': input_data.conversation_id,
-                    "optional_instructions": input_data.optional_instructions
-                    or "None provided. Apply general optimization principles.",
-                    "answer_instructions": format_instructions,
-                    "world_instructions": WorldModal.schema_for_fields(),
-                    'user_question': input_data.user_query,
-                    'last_5_messages': self._get_chat_history(input_data.conversation_id, 5),
-                    "input": f'Answer the following question about the topology of world {input_data.world_id}: {input_data.user_query}',
-                }
-                result = agent_executor.invoke(agent_input)
-                final_output_data = result.get("output")
-
-                if isinstance(final_output_data, dict):
-                    # Parse the dictionary into the Pydantic model for validation
-                    parsed_output = TopologyQnAOutput.model_validate(
-                        final_output_data
-                    )
-                    print("--- Optimization Proposal Generated ---")
-                    return parsed_output
-                else:
-                    print(
-                        f"ERROR: Agent returned unexpected final output format: {type(final_output_data)}"
-                    )
-                    print(f"Raw output: {final_output_data}")
-                    # Attempt to parse if it's a string containing JSON (shouldn't happen with correct prompt)
-                    if isinstance(final_output_data, str):
-                        try:
-                            parsed_output = TopologyQnAOutput.model_validate_json(
-                                final_output_data
-                            )
-                            print(
-                                "--- Optimization Proposal Generated (Parsed from String) ---"
-                            )
-                            return parsed_output
-                        except Exception as e_parse:
-                            print(
-                                f"ERROR: Failed to parse string output as JSON: {e_parse}"
-                            )
-
-                    return None  # Failed
-            except Exception as e:
-                traceback.print_exc()
-                self.logger.exception(f"Exception during agent execution!")
-                raise LLMError(f"Error during agent execution: {e}")
-        else:
-            raise Exception("LLM not available, logs invalid, or no tools defined")
+            if isinstance(result, TopologyQnAOutput):
+                print("--- Topology QnA Response Generated ---")
+                return result
+            else:
+                self.logger.error(f"Unexpected output type: {type(result)}")
+                return None
+        except Exception as e:
+            traceback.print_exc()
+            self.logger.exception(f"Exception during topology QnA!")
+            raise LLMError(f"Error during topology QnA: {e}")

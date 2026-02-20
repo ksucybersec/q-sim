@@ -4,13 +4,8 @@ import traceback
 from typing import Dict, Any, List, Optional, Union
 from fastapi import HTTPException
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    HumanMessagePromptTemplate,
-    SystemMessagePromptTemplate,
-)
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain.agents import create_structured_chat_agent, AgentExecutor
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import create_tool_calling_agent, AgentExecutor
 
 import re
 
@@ -129,7 +124,7 @@ class LogSummarizationAgent(BaseAgent):
         return self.validate_output(task_id, result)
 
     async def _summarize_logs(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Summarize log entries."""
+        """Summarize log entries using create_tool_calling_agent (needs tools to fetch logs)."""
         simulation_id = input_data.get("simulation_id")
         if simulation_id:
             logs = self._get_relevant_logs(simulation_id, "*")
@@ -148,67 +143,60 @@ class LogSummarizationAgent(BaseAgent):
                 json_obj = json.loads(json_str)
                 return LogSummaryOutput.model_validate(json_obj['action_input'])
 
+        if not self.llm:
+            raise LLMError("LLM not available")
+
         focus_components = input_data.get("focus_components")
         user_query = input_data.get("message")
 
-        output_parser = PydanticOutputParser(pydantic_object=LogSummaryOutput)
+        # Pattern B: create_tool_calling_agent — uses native tool calling API
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", get_system_prompt()),
+            ("human", "{input}"),
+            ("placeholder", "{agent_scratchpad}"),
+        ])
 
-        system_template = get_system_prompt()
+        agent = create_tool_calling_agent(self.llm, self.tools, prompt)
 
-        system_message_prompt = SystemMessagePromptTemplate.from_template(
-            system_template
+        agent_executor = AgentExecutor(
+            agent=agent,
+            tools=self.tools,
+            verbose=True,
+            return_intermediate_steps=True,
+            handle_parsing_errors=True,
+            max_iterations=5,
+            early_stopping_method="force",
         )
-        human_message_prompt = HumanMessagePromptTemplate.from_template(
-            "{input}\n\n{agent_scratchpad}"
-        )
-        prompt = ChatPromptTemplate.from_messages(
-            [system_message_prompt, human_message_prompt]
-        )
-        prompt = prompt.partial(
-            answer_instructions=output_parser.get_format_instructions()
-        )
 
-        if self.llm and self.tools:
-            llm_with_tools = self.llm.bind_tools(self.tools)
-
-            agent = create_structured_chat_agent(llm_with_tools, self.tools, prompt)
-
-            agent_executor = AgentExecutor(
-                agent=agent,
-                tools=self.tools,
-                verbose=True,
-                return_intermediate_steps=True,
-                handle_parsing_errors="Strictly follow to 'RESPONSE FORMAT' given in prompt",
-                max_iterations=5,
-                early_stopping_method="force",
+        try:
+            response = await agent_executor.ainvoke(
+                {
+                    "simulation_id": simulation_id,
+                    "logs": json.dumps([logs[0], logs[-1]]),
+                    "total_logs": len(logs),
+                    "input": user_query
+                    or f"Summarize logs for simulation ID: {simulation_id}",
+                }
             )
-
-            try:
-                response = await agent_executor.ainvoke(
-                    {
-                        "simulation_id": simulation_id,
-                        "logs": json.dumps([logs[0], logs[-1]]),
-                        "total_logs": len(logs),
-                        "input": user_query
-                        or f"Summarize logs for simulation ID: {simulation_id}",
-                    }
-                )
-                if "output" in response:
-                    self.save_agent_response(response)
-                    return response["output"]
-                else:
-                    return {"summary": "Failed to generate structured output."}
-            except Exception as e:
-                traceback.print_exc()
-                self.logger.exception(f"Exception during agent execution!")
-                raise LLMError(f"Error during agent execution: {e}")
-        else:
-            raise Exception("LLM not available, logs invalid, or no tools defined")
+            if "output" in response:
+                self.save_agent_response(response)
+                output = response["output"]
+                # Parse string output if needed
+                if isinstance(output, str):
+                    try:
+                        return LogSummaryOutput.model_validate_json(output)
+                    except Exception:
+                        return {"summary": output}
+                return output
+            else:
+                return {"summary": "Failed to generate structured output."}
+        except Exception as e:
+            traceback.print_exc()
+            self.logger.exception(f"Exception during agent execution!")
+            raise LLMError(f"Error during agent execution: {e}")
 
     async def _extract_patterns(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract recurring patterns from logs."""
-        # Similar implementation to summarize but focused on patterns
-        # This is a simplified version - expand as needed
         summary_result = await self._summarize_logs(input_data)
 
         # Add pattern-specific analysis here
@@ -219,8 +207,8 @@ class LogSummarizationAgent(BaseAgent):
         return summary_result
 
     async def log_qna(self, input_data: Union[Dict[str, Any], LogQnARequest]):
+        """Answer questions about logs using create_tool_calling_agent (needs tools to fetch specific logs)."""
         if isinstance(input_data, Dict):
-            # Implement the logic to optimize the topology based on the provided instructions
             input_data = LogQnARequest(**input_data)
 
         if self.config.dev.enable_mock_responses:
@@ -229,178 +217,110 @@ class LogSummarizationAgent(BaseAgent):
                 json_obj = json.loads(json_str)
                 return LogQnAOutput.model_validate(json_obj['action_input'])
 
-        parser = PydanticOutputParser(pydantic_object=LogQnAOutput)
-        format_instructions = parser.get_format_instructions()
+        if not self.llm:
+            raise LLMError("LLM not available")
 
-        system_message_prompt = SystemMessagePromptTemplate.from_template(LOG_QNA_AGENT)
+        # Pre-fetch topology and chat history (these are always needed)
+        topology_data = self._get_topology_by_simulation(input_data.simulation_id)
+        chat_history = self._get_chat_history(input_data.conversation_id, 5)
 
-        human_message_prompt = HumanMessagePromptTemplate.from_template(
-            "{input}\n\n{agent_scratchpad}"
+        # Pattern B: create_tool_calling_agent — agent may need to fetch specific logs
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", LOG_QNA_AGENT),
+            ("human", "{input}"),
+            ("placeholder", "{agent_scratchpad}"),
+        ])
+
+        agent = create_tool_calling_agent(self.llm, self.tools, prompt)
+
+        agent_executor = AgentExecutor(
+            agent=agent,
+            tools=self.tools,
+            verbose=True,
+            return_intermediate_steps=True,
+            handle_parsing_errors=True,
+            max_iterations=self.config.llm.retry_attempts,
+            early_stopping_method="force",
         )
-        prompt = ChatPromptTemplate.from_messages(
-            [system_message_prompt, human_message_prompt]
-        )
 
-        if self.llm and self.tools:
-            llm_with_tools = self.llm.bind_tools(self.tools)
+        try:
+            agent_input = {
+                "simulation_id": input_data.simulation_id,
+                "topology_data": json.dumps(topology_data) if topology_data else "No topology available.",
+                "conversation_id": input_data.conversation_id,
+                "optional_instructions": input_data.optional_instructions
+                or "None provided.",
+                "user_question": input_data.user_query,
+                "last_5_messages": chat_history,
+                "input": f"Answer the following question about the logs of simulation {input_data.simulation_id}: {input_data.user_query}",
+            }
+            result = await agent_executor.ainvoke(agent_input)
+            final_output_data = result.get("output")
 
-            agent = create_structured_chat_agent(llm_with_tools, self.tools, prompt)
-
-            agent_executor = AgentExecutor(
-                agent=agent,
-                tools=self.tools,
-                verbose=True,
-                return_intermediate_steps=True,
-                handle_parsing_errors="Strictly follow to 'RESPONSE FORMAT' given in prompt",
-                max_iterations=self.config.llm.retry_attempts,
-                early_stopping_method="force",
-            )
-
-            try:
-                agent_input = {
-                    "simulation_id": input_data.simulation_id,
-                    "topology_data": self._get_topology_by_simulation(
-                        input_data.simulation_id
-                    ),
-                    "conversation_id": input_data.conversation_id,
-                    "optional_instructions": input_data.optional_instructions
-                    or "None provided. Apply general optimization principles.",
-                    "answer_instructions": format_instructions,
-                    "user_question": input_data.user_query,
-                    "last_5_messages": self._get_chat_history(
-                        input_data.conversation_id, 5
-                    ),
-                    "input": f"Answer the following question about the logs of simulation {input_data.simulation_id}: {input_data.user_query}",
-                }
-                result = agent_executor.invoke(agent_input)
-                final_output_data = result.get("output")
-
-                if isinstance(final_output_data, dict):
-                    # Parse the dictionary into the Pydantic model for validation
-                    parsed_output = LogQnAOutput.model_validate(final_output_data)
-                    print("--- Optimization Proposal Generated ---")
+            if isinstance(final_output_data, dict):
+                parsed_output = LogQnAOutput.model_validate(final_output_data)
+                return parsed_output
+            elif isinstance(final_output_data, str):
+                try:
+                    parsed_output = LogQnAOutput.model_validate_json(final_output_data)
                     return parsed_output
-                else:
-                    print(
-                        f"ERROR: Agent returned unexpected final output format: {type(final_output_data)}"
-                    )
-                    print(f"Raw output: {final_output_data}")
-                    # Attempt to parse if it's a string containing JSON (shouldn't happen with correct prompt)
-                    if isinstance(final_output_data, str):
-                        try:
-                            parsed_output = LogQnAOutput.model_validate_json(
-                                final_output_data
-                            )
-                            print(
-                                "--- Optimization Proposal Generated (Parsed from String) ---"
-                            )
-                            return parsed_output
-                        except Exception as e_parse:
-                            print(
-                                f"ERROR: Failed to parse string output as JSON: {e_parse}"
-                            )
-
-                    return None  # Failed
-            except Exception as e:
-                traceback.print_exc()
-                self.logger.exception(f"Exception during agent execution!")
-                raise LLMError(f"Error during agent execution: {e}")
-        else:
-            raise Exception("LLM not available, logs invalid, or no tools defined")
+                except Exception as e_parse:
+                    self.logger.error(f"Failed to parse string output: {e_parse}")
+            
+            return None
+        except Exception as e:
+            traceback.print_exc()
+            self.logger.exception(f"Exception during agent execution!")
+            raise LLMError(f"Error during agent execution: {e}")
 
     async def realtime_log_summary(
         self, input_data: Union[Dict[str, Any], RealtimeLogSummaryInput]
     ):
+        """Generate realtime log summary using LCEL chain (all data pre-fetched)."""
         if isinstance(input_data, dict):
             input_data = RealtimeLogSummaryInput(**input_data)
+
         try:
             lite_llm = self.llm.use("lite")
         except LLMDoesNotExists as e:
             print(f"Failed to initialize LLM: {e}")
-            # Fallback to using the main model
             lite_llm = self.llm
 
         if isinstance(lite_llm, ChatOllama):
             lite_llm.format = RealtimeLogSummaryOutput.model_json_schema()
 
-        parser = PydanticOutputParser(pydantic_object=RealtimeLogSummaryOutput)
-        format_instructions = parser.get_format_instructions()
+        if not lite_llm:
+            raise LLMError("LLM not available")
 
-        system_message_prompt = SystemMessagePromptTemplate.from_template(
-            REALTIME_LOG_SUMMARY_AGENT_PROMPT
-        )
-
-        human_message_prompt = HumanMessagePromptTemplate.from_template(
-            "{input}\n\n{agent_scratchpad}"
-        )
-
-        prompt = ChatPromptTemplate.from_messages(
-            [system_message_prompt, human_message_prompt]
-        )
-
-        if lite_llm and self.tools:
-            llm_with_tools = lite_llm.bind_tools([])
-
-            agent = create_structured_chat_agent(llm_with_tools, self.tools, prompt)
-
-            agent_executor = AgentExecutor(
-                agent=agent,
-                tools=self.tools,
-                verbose=True,
-                return_intermediate_steps=True,
-                handle_parsing_errors=True,
-                max_iterations=5,
-                early_stopping_method="force",
+        topology = self._get_topology_by_simulation(input_data.simulation_id)
+        if not topology:
+            raise ValueError(
+                f"No topology found for simulation ID: {input_data.simulation_id}"
             )
 
-            topology = self._get_topology_by_simulation(input_data.simulation_id)
-            if not topology:
-                raise ValueError(
-                    f"No topology found for simulation ID: {input_data.simulation_id}"
-                )
+        # Pattern A: LCEL chain — all data pre-fetched
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", REALTIME_LOG_SUMMARY_AGENT_PROMPT),
+            ("human", "{input}"),
+        ])
 
-            try:
-                agent_input = {
-                    "previous_summary": input_data.previous_summary,
-                    "new_logs": input_data.new_logs,
-                    "simulation_id": input_data.simulation_id,
-                    # 'topology_details': topology,
-                    # 'topology_details_definition':WorldModal.model_json_schema(),
-                    "optional_instructions": input_data.optional_instructions,
-                    "answer_instructions": format_instructions,
-                    "input": "Summarize delta logs from the simulation and append delta summary to previous summary.",
-                }
-                result = agent_executor.invoke(agent_input)
-                final_output_data = result.get("output")
+        chain = prompt | lite_llm.with_structured_output(RealtimeLogSummaryOutput)
 
-                if isinstance(final_output_data, dict):
-                    # Parse the dictionary into the Pydantic model for validation
-                    parsed_output = RealtimeLogSummaryOutput.model_validate(
-                        final_output_data
-                    )
-                    return parsed_output
-                else:
-                    print(
-                        f"ERROR: Agent returned unexpected final output format: {type(final_output_data)}"
-                    )
-                    # Attempt to parse if it's a string containing JSON (shouldn't happen with correct prompt)
-                    if isinstance(final_output_data, str):
-                        try:
-                            parsed_output = (
-                                RealtimeLogSummaryOutput.model_validate_json(
-                                    final_output_data
-                                )
-                            )
-                            return parsed_output
-                        except Exception as e_parse:
-                            print(
-                                f"ERROR: Failed to parse string output as JSON: {e_parse}"
-                            )
+        try:
+            result = await chain.ainvoke({
+                "previous_summary": input_data.previous_summary,
+                "new_logs": input_data.new_logs,
+                "simulation_id": input_data.simulation_id,
+                "optional_instructions": input_data.optional_instructions,
+                "input": "Summarize delta logs from the simulation and append delta summary to previous summary.",
+            })
 
-                    return None  # Failed
-            except Exception as e:
-                traceback.print_exc()
-                self.logger.exception(f"Exception during agent execution!")
-                raise LLMError(f"Error during agent execution: {e}")
-        else:
-            raise Exception("LLM not available, logs invalid, or no tools defined")
+            if isinstance(result, RealtimeLogSummaryOutput):
+                return result
+            else:
+                self.logger.error(f"Unexpected output type: {type(result)}")
+                return None
+        except Exception as e:
+            traceback.print_exc()
+            self.logger.exception(f"Exception during realtime log summary!")
+            raise LLMError(f"Error during realtime log summary: {e}")
