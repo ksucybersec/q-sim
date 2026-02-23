@@ -47,11 +47,43 @@ class QuantumRepeater(QuantumNode):
                 return q_host
         return None
 
-    def channel_exists(self, host: 'QuantumNode'):
-        """Checks if a channel to a given host exists from this repeater."""
+    def channel_exists(self, host: 'QuantumNode', _visited: set = None):
+        """Checks if a channel to a given host exists from this repeater (direct or via other repeaters)."""
+        if _visited is None:
+            _visited = set()
+        if self in _visited:
+            return None
+        _visited.add(self)
         for channel in self.quantum_channels:
-            if channel.get_other_node(self) == host:
+            other = channel.get_other_node(self)
+            if other == host:
                 return channel
+            if isinstance(other, QuantumRepeater):
+                if other.channel_exists(host, _visited) is not None:
+                    return channel
+        return None
+
+    def get_other_end_host(self, from_node: 'QuantumNode', _visited: set = None):
+        """
+        For daisy chains: walk from this repeater away from from_node until we hit a QuantumHost.
+        Returns that QuantumHost, or None if not found (e.g. cycle or no host).
+        """
+        if _visited is None:
+            _visited = set()
+        if self in _visited:
+            return None
+        _visited.add(self)
+        for channel in self.quantum_channels:
+            other = channel.get_other_node(self)
+            if other is from_node:
+                continue
+            # End host: node that has request_entanglement (QuantumHost)
+            if callable(getattr(other, "request_entanglement", None)):
+                return other
+            if isinstance(other, QuantumRepeater):
+                end = other.get_other_end_host(self, _visited)
+                if end is not None:
+                    return end
         return None
 
     def receive_qubit(self, qubit: qt.Qobj, source_channel: 'QuantumChannel'):
@@ -62,6 +94,19 @@ class QuantumRepeater(QuantumNode):
 
         sender = source_channel.get_other_node(self)
         print(f"REPEATER {self.name}: Received qubit from {sender.name}.")
+
+        # Daisy chain: if we have no qubits yet and the sender is an end host, forward toward the other end
+        # so both qubits can meet at one repeater for BSM. Only forward to another repeater (never to an
+        # end host, and never back to sender — avoids loop and "received qubit in entanglement_swapping" error).
+        if len(self.qmemory) == 0 and callable(getattr(sender, "request_entanglement", None)):
+            other_channel = next((ch for ch in self.quantum_channels if ch is not source_channel), None)
+            if other_channel is not None:
+                other_node = other_channel.get_other_node(self)
+                if other_node is not sender and isinstance(other_node, QuantumRepeater):
+                    print(f"REPEATER {self.name}: Forwarding qubit from {sender.name} toward other end.")
+                    other_channel.transmit_qubit(qubit, self)
+                    return
+
         self.qmemory[sender.name] = qubit
         print(f"REPEATER {self.name}: Current memory size: {len(self.qmemory)}/{self.num_memories}.")
         
@@ -103,18 +148,31 @@ class QuantumRepeater(QuantumNode):
             measurement_result=measurement_result
         )
 
-        # Send correction to one end (e.g., neighbor_2). The message must also
-        # identify the other end-point (neighbor_1).
+        # Send correction to the end host on neighbor_2's side; message must identify the other end host by name (for daisy chain).
+        neighbor_1_node = next((n for n in self.network.nodes if n.name == neighbor_1_addr), None)
+        neighbor_2_node = next((n for n in self.network.nodes if n.name == neighbor_2_addr), None)
+        if neighbor_1_node is None or neighbor_2_node is None:
+            target_node = self.get_other_node(neighbor_1_addr)
+            other_node_address = neighbor_1_addr
+        else:
+            # Resolve end hosts (supports daisy chain)
+            if callable(getattr(neighbor_1_node, "request_entanglement", None)):
+                end_host_1 = neighbor_1_node
+            else:
+                end_host_1 = self.get_other_end_host(neighbor_2_node) if isinstance(neighbor_2_node, QuantumRepeater) else None
+            if callable(getattr(neighbor_2_node, "request_entanglement", None)):
+                end_host_2 = neighbor_2_node
+            else:
+                end_host_2 = self.get_other_end_host(neighbor_1_node) if isinstance(neighbor_1_node, QuantumRepeater) else None
+            target_node = end_host_2
+            other_node_address = end_host_1.name if end_host_1 is not None else neighbor_1_addr
         classical_message = {
             "type": "entanglement_swap_correction",
             "measurement_result": measurement_result,
-            "other_node_address": neighbor_1_addr,
+            "other_node_address": other_node_address,
         }
-        # self.send_classical_message(neighbor_2_addr, classical_message)
-        target_node = self.get_other_node(neighbor_1_addr)
-
         if not target_node:
-            print(f"REPEATER {self.name}: No channel to {neighbor_1_addr}. Cannot send correction.")
+            print(f"REPEATER {self.name}: No end host to send correction to.")
             return
         target_node.receive_classical_data(classical_message)
 

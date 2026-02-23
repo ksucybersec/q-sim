@@ -53,6 +53,7 @@ export default function QuantumNetworkSimulator() {
 
   // State variable for the AI panel
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
+  const [isLogSummaryEnabled, setIsLogSummaryEnabled] = useState(false)
 
   // Reference to the NetworkCanvas component
   const networkCanvasRef = useRef(null)
@@ -60,6 +61,11 @@ export default function QuantumNetworkSimulator() {
   const [isLogSummaryMinimized, setIsLogSummaryMinimized] = useState(false)
 
   useEffect(() => {
+
+    api.getConfig().then((config) => {
+      setIsLogSummaryEnabled(config.enable_realtime_log_summary);
+    })
+
     if (!simulationState.getUserName()) {
       setIsUsernameModalOpen(true);
     } else {
@@ -330,7 +336,7 @@ export default function QuantumNetworkSimulator() {
 
 
             {/* Always visible log summary widget */}
-            {isSimulationRunning ?
+            {isSimulationRunning && isLogSummaryEnabled ?
               <RealtimeLogSummary isSimulationRunning={isSimulationRunning} onMinimizedChange={setIsLogSummaryMinimized} /> : null}
 
             <div

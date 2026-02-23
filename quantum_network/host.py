@@ -60,18 +60,23 @@ class QuantumHost(QuantumNode):
         return self.proxy_channel_exists(to_host)
 
     def proxy_channel_exists(self, to_host: QuantumNode):
-        """Checks if a proxy channel exists to the specified host."""
+        """Checks if a proxy channel exists to the specified host (via repeaters or eavesdropper)."""
         for chan in self.quantum_channels:
             if chan.node_1 == self:
                 if isinstance(chan.node_2, QuantumRepeater) and chan.node_2.channel_exists(to_host):
                     return chan
-                elif chan.node_2.is_eavesdropper and chan.node_2.get_outgoing_victim_channel(to_host):
-                    return chan
+                # Eavesdropper branch only for nodes that have is_eavesdropper (e.g. QuantumHost), not QuantumRepeater
+                elif not isinstance(chan.node_2, QuantumRepeater) and getattr(chan.node_2, "is_eavesdropper", False):
+                    outgoing = getattr(chan.node_2, "get_outgoing_victim_channel", lambda _: None)(chan)
+                    if outgoing:
+                        return chan
             elif chan.node_2 == self:
                 if isinstance(chan.node_1, QuantumRepeater) and chan.node_1.channel_exists(to_host):
                     return chan
-                elif chan.node_1.is_eavesdropper and chan.node_1.get_outgoing_victim_channel(to_host):
-                    return chan
+                elif not isinstance(chan.node_1, QuantumRepeater) and getattr(chan.node_1, "is_eavesdropper", False):
+                    outgoing = getattr(chan.node_1, "get_outgoing_victim_channel", lambda _: None)(chan)
+                    if outgoing:
+                        return chan
         return None
 
     def forward(self):
@@ -298,7 +303,11 @@ class QuantumHost(QuantumNode):
             if not isinstance(repeater, QuantumRepeater):
                 print(f"ERROR: Host {self.name} is in 'entanglement_swapping' mode but no repeater found on channel.")
                 return
-            target = repeater.get_other_node(self)
+            # Resolve the other end host (supports daisy chain: qhost - repeater - ... - repeater - qhost)
+            target = repeater.get_other_end_host(self)
+            if target is None or not callable(getattr(target, "request_entanglement", None)):
+                print(f"ERROR: Host {self.name} could not resolve other end QuantumHost for entanglement (daisy chain?).")
+                return
             self.request_entanglement(target)
             target.request_entanglement(self)
         else:
@@ -387,7 +396,10 @@ class QuantumHost(QuantumNode):
         if not isinstance(repeater, QuantumRepeater):
             print(f"ERROR: Host {self.name} is in 'entanglement_swapping' mode but no repeater found on channel.")
             return
-        target = repeater.get_other_node(self)
+        target = repeater.get_other_end_host(self)
+        if target is None:
+            print(f"ERROR: Host {self.name} could not resolve other end host for entangled channel.")
+            return
         self.entangled_channel = QuantumChannel(
             self, 
             target,

@@ -28,6 +28,8 @@ agents:
 control_config:
   enable_realtime_log_summary: false
   enable_ai_feature: true
+  # true = run summarization in Celery workers; false = run in main process (non-blocking via thread pool)
+  realtime_log_summary_use_celery: false
 
 logging:
   level: "INFO"

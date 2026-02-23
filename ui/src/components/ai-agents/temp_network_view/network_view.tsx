@@ -69,6 +69,7 @@ const NetworkVisualizer = ({ topologyStringifiedData }: NetworkVisualizerProps) 
                 // Add connections if present
                 if (network.connections && network.connections.length > 0) {
                     network.connections.forEach(connection => {
+                        if (!connection.to_node) return;
                         edges.push({
                             from: connection.from_node,
                             to: connection.to_node,
@@ -101,8 +102,18 @@ const NetworkVisualizer = ({ topologyStringifiedData }: NetworkVisualizerProps) 
                 });
                 nodeIds.add(adapter.name);
 
+                // Match main canvas: adapter sits between classical and quantum host (two edges, not one)
                 edges.push({
                     from: adapter.classicalHost,
+                    to: adapter.name,
+                    smooth: {
+                        type: 'cubicBezier',
+                        roundness: 0.5,
+                        enabled: true
+                    }
+                });
+                edges.push({
+                    from: adapter.name,
                     to: adapter.quantumHost,
                     smooth: {
                         type: 'cubicBezier',

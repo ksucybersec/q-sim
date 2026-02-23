@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pprint import pprint
 import threading
@@ -26,6 +27,74 @@ from data.models.topology.world_model import WorldModal
 from json_parser import simulate_from_json
 from server.socket_server.socket_server import ConnectionManager
 from tasks import summarize_logs_task
+
+# Thread pool for in-process log summarization so the simulation thread is not blocked
+_summary_executor: Optional[ThreadPoolExecutor] = None
+
+
+def _get_summary_executor() -> ThreadPoolExecutor:
+    global _summary_executor
+    if _summary_executor is None:
+        _summary_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="log_summary")
+    return _summary_executor
+
+
+def _run_summarization_inprocess(
+    simulation_id: str,
+    previous_summary: List[str],
+    new_logs: List[str],
+    conversation_id: str,
+    main_event_loop: asyncio.AbstractEventLoop,
+    on_done,  # callable(manager, result, error) invoked on main loop
+    manager: "SimulationManager",
+) -> None:
+    """Run log summarization in a worker thread (same logic as Celery task). Calls on_done on main loop when done."""
+    result, error = None, None
+    try:
+        coordinator = Coordinator()
+        agent_args = RealtimeLogSummaryInput(
+            simulation_id=simulation_id,
+            previous_summary=previous_summary,
+            new_logs=new_logs,
+            conversation_id=conversation_id,
+            optional_instructions=None,
+        )
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                coordinator._run_agent_task(AgentType.LOG_SUMMARIZER, {
+                    "task_id": AgentTaskType.REALTIME_LOG_SUMMARY,
+                    "input_data": agent_args,
+                })
+            )
+        finally:
+            loop.close()
+    except Exception as e:
+        error = e
+    main_event_loop.call_soon_threadsafe(on_done, manager, result, error)
+
+
+def _handle_inprocess_result(manager: "SimulationManager", result: Any, error: Optional[Exception]) -> None:
+    """Called on main event loop when in-process summarization finishes. Updates state and emits event."""
+    manager.last_summarized_on = time.time()
+    if error is not None:
+        print(f"Error in in-process log summarization: {error}")
+        return
+    if result is None:
+        return
+    try:
+        new_summary = result.get("summary_text") if isinstance(result, dict) else None
+        if new_summary is not None:
+            if len(new_summary) == 1:
+                manager.current_log_summary.append(new_summary[0])
+            else:
+                manager.current_log_summary = new_summary
+        summary_result = dict(result)
+        summary_result["summary_text"] = manager.current_log_summary
+        manager.emit_event("simulation_summary", summary_result)
+    except Exception as e:
+        print(f"Error handling in-process summary result: {e}")
 
 
 class SimulationManager:
@@ -88,7 +157,7 @@ class SimulationManager:
             self.save_simulation = save_simulation(self.simulation_data)
             try:
                 self.main_event_loop = asyncio.get_running_loop()
-                print(f"Captured main event loop: {self.main_event_loop}")
+                print(f"Captured main event loop: {self.main_event_loop}. Using Celery: {self.config.control_config.realtime_log_summary_use_celery}")
             except RuntimeError:
                 print(
                     "CRITICAL WARNING: Could not get running loop when starting simulation. "
@@ -135,20 +204,33 @@ class SimulationManager:
             
             logs_to_summarize = self.logs_to_summarize.copy()
             self.logs_to_summarize.clear()
-            
-            # Send to Celery instead of running locally
-            task = summarize_logs_task.delay(
-                simulation_id=self.simulation_data.pk,
-                previous_summary=self.current_log_summary,
-                new_logs=[l.to_human_string() for l in logs_to_summarize],
-                conversation_id=self.simulation_data.pk
-            )
-            
-            # Schedule result handler to run on main event loop
-            def schedule_result_handler():
-                asyncio.create_task(self._handle_celery_result(task))
-            
-            self.main_event_loop.call_soon_threadsafe(schedule_result_handler)
+            new_logs_str = [l.to_human_string() for l in logs_to_summarize]
+            use_celery = self.config.control_config.realtime_log_summary_use_celery
+
+            if use_celery:
+                task = summarize_logs_task.delay(
+                    simulation_id=self.simulation_data.pk,
+                    previous_summary=self.current_log_summary,
+                    new_logs=new_logs_str,
+                    conversation_id=self.simulation_data.pk
+                )
+                def schedule_result_handler():
+                    asyncio.create_task(self._handle_celery_result(task))
+                self.main_event_loop.call_soon_threadsafe(schedule_result_handler)
+            else:
+                # Run in main process via thread pool so simulation thread is not blocked
+                executor = _get_summary_executor()
+
+                executor.submit(
+                    _run_summarization_inprocess,
+                    self.simulation_data.pk,
+                    self.current_log_summary,
+                    new_logs_str,
+                    self.simulation_data.pk,
+                    self.main_event_loop,
+                    _handle_inprocess_result,
+                    self,
+                )
     
     async def _handle_celery_result(self, task):
         """Handle Celery task result asynchronously"""
@@ -201,7 +283,11 @@ class SimulationManager:
                     while self.simulation_world.is_running:
                         time.sleep(2)
                         if self.config.control_config.enable_realtime_log_summary and self.config.control_config.enable_ai_feature:
-                            self._summarize_delta_logs()
+                            try:
+                                self._summarize_delta_logs()
+                            except Exception as e:
+                                print(f"Error summarizing delta logs: {e}")
+                                traceback.print_exc()
 
                     self.emit_event(
                         "simulation_completed",

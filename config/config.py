@@ -48,6 +48,9 @@ class AppConfig(BaseSettings):
 
         config_obj = cls(**config_dict)
 
+        if not config_obj.control_config.enable_ai_feature:
+            config_obj.control_config.enable_realtime_log_summary = False
+
         if config_obj.dev.enable_mock_responses:
             print("=========== WARNING ===========")
             print("Loaded configuration with mock responses enabled.")

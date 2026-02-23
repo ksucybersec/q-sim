@@ -98,9 +98,16 @@ def check_port_constraints(adj: Dict, node_map: Dict) -> List[str]:
     errors = []
     
     for name, neighbors in adj.items():
-        node = node_map[name]
-        degree = len(neighbors)
-        neighbor_types = [node_map[n].type for n in neighbors]
+        node = node_map.get(name)
+        if not node:
+            continue
+        # Only consider neighbors that exist in node_map (connections may reference undefined nodes)
+        missing = [n for n in neighbors if n not in node_map]
+        for n in missing:
+            errors.append(f"Connection references undefined node '{n}'.")
+        known_neighbors = [n for n in neighbors if n in node_map]
+        degree = len(known_neighbors)
+        neighbor_types = [node_map[n].type for n in known_neighbors]
 
         # Case A: QuantumHost (Strictly 2 connections: 1 Adapter, 1 Link)
         if node.type == "QuantumHost":
