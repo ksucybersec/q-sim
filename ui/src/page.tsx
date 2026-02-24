@@ -18,6 +18,7 @@ import { ConnectionManager } from "./components/node/connections/connectionManag
 import { AIAgentsModal } from "./components/ai-agents/ai-agents-modal"
 import simulationState from "./helpers/utils/simulationState"
 import { SimulatorNode } from "./components/node/base/baseNode"
+import { SimulationNodeType } from "./components/node/base/enums"
 import { RealtimeLogSummary } from "./components/metrics/realtime-log-summary"
 import { ClassicalHost } from "./components/node/classical/classicalHost"
 import { MessagingPanel } from "./components/metrics/messaging-panel"
@@ -54,6 +55,21 @@ export default function QuantumNetworkSimulator() {
   // State variable for the AI panel
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
   const [isLogSummaryEnabled, setIsLogSummaryEnabled] = useState(false)
+
+  // Quick-add connected node helper (floating button on node hover). Default on, persist in localStorage.
+  const [quickAddHelperEnabled, setQuickAddHelperEnabled] = useState(() => {
+    try {
+      const v = localStorage.getItem("topology-quick-add-helper");
+      return v !== "false";
+    } catch {
+      return true;
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem("topology-quick-add-helper", String(quickAddHelperEnabled));
+    } catch (_) {}
+  }, [quickAddHelperEnabled])
 
   // Reference to the NetworkCanvas component
   const networkCanvasRef = useRef(null)
@@ -195,6 +211,13 @@ export default function QuantumNetworkSimulator() {
     triggerLabCheck();
   }
 
+  const handleAddConnectedNode = (nodeType: SimulationNodeType) => {
+    const canvas = networkCanvasRef.current as any;
+    if (!canvas?.addConnectedNode || !selectedNode) return;
+    canvas.addConnectedNode(selectedNode, nodeType);
+    triggerLabCheck();
+  }
+
   const executeSimulation = async () => {
     if (isSimulationRunning) {
       if (!api.stopSimulation())
@@ -295,6 +318,8 @@ export default function QuantumNetworkSimulator() {
           onOpenAIPanel={() => setIsAIPanelOpen(true)}
           isRunning={isSimulationRunning}
           toggleSimulation={executeSimulation}
+          quickAddHelperEnabled={quickAddHelperEnabled}
+          onQuickAddHelperChange={setQuickAddHelperEnabled}
         />
 
         {/* Main Workspace */}
@@ -307,6 +332,8 @@ export default function QuantumNetworkSimulator() {
               isSimulationRunning={isSimulationRunning}
               simulationTime={currentTime}
               activeMessages={activeMessages}
+              quickAddHelperEnabled={quickAddHelperEnabled}
+              onQuickAddNodeAdded={triggerLabCheck}
             />
 
             {/* Active Lab Indicator */}
@@ -340,7 +367,7 @@ export default function QuantumNetworkSimulator() {
               <RealtimeLogSummary isSimulationRunning={isSimulationRunning} onMinimizedChange={setIsLogSummaryMinimized} /> : null}
 
             <div
-              className={`overflow-y-auto transition-all duration-300 ${isSimulationRunning && !isLogSummaryMinimized ? "flex-1" : "flex-1"
+              className={`overflow-y-auto transition-all duration-300 ${((isSimulationRunning && !isLogSummaryMinimized) || !isLogSummaryEnabled) ? "flex-1" : "flex-1"
                 }`}
             >
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
@@ -371,6 +398,7 @@ export default function QuantumNetworkSimulator() {
                       selectedNode={selectedNode}
                       updateNodeProperties={updateNodeProperties}
                       onSendMessage={handleSendMessage}
+                      onAddConnectedNode={handleAddConnectedNode}
                       isSimulationRunning={isSimulationRunning}
                     />
                   </TabsContent>

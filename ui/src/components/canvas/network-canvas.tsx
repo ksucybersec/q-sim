@@ -8,7 +8,7 @@ import { SimulatorNode, SimulatorNodeOptions } from "../node/base/baseNode";
 import { ConnectionManager } from "../node/connections/connectionManager";
 import { KeyboardListener } from "./keyboard";
 import { NetworkManager } from "../node/network/networkManager";
-import { SimulationNodeType } from "../node/base/enums";
+import { SimulationNodeType, getSimulationNodeTypeString } from "../node/base/enums";
 import { manager } from "../node/nodeManager";
 import * as fabric from "fabric";
 import "./canvas.scss";
@@ -20,6 +20,15 @@ import { NetworkAnimationController } from "./animation";
 import { networkStorage } from "@/services/storage";
 import { toast } from "sonner";
 import simulationState from "@/helpers/utils/simulationState";
+import { getCompatibleNextNodeTypes } from "@/helpers/topologyHelper";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus } from "lucide-react";
 
 import { debounce } from "lodash"; // Import debounce from lodash
 
@@ -28,14 +37,80 @@ interface NetworkCanvasProps {
   isSimulationRunning: boolean
   simulationTime: number
   activeMessages?: any[]
+  quickAddHelperEnabled?: boolean
+  onQuickAddNodeAdded?: () => void
 }
 
-export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, simulationTime, activeMessages = [] }: NetworkCanvasProps, ref) => {
-  // const canvasRef = useRef<HTMLCanvasElement>(null)
+export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, simulationTime, activeMessages = [], quickAddHelperEnabled = true, onQuickAddNodeAdded }: NetworkCanvasProps, ref) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const quickAddOverlayRef = useRef<HTMLDivElement>(null);
   const { editor, onReady } = useFabricJSEditor();
   const [nodes, setNodes] = useState([]);
+  const [hoveredNode, setHoveredNode] = useState<SimulatorNode | null>(null);
+  const [quickAddMenuOpen, setQuickAddMenuOpen] = useState(false);
+  const [quickAddPosition, setQuickAddPosition] = useState<{ left: number; top: number } | null>(null);
 
   const logger = getLogger("Canvas");
+
+  const updateQuickAddPosition = useCallback(() => {
+    const canvas = editor?.canvas as fabric.Canvas;
+    const node = hoveredNode;
+    if (!canvas || !node || !containerRef.current) {
+      setQuickAddPosition(null);
+      return;
+    }
+    const vpt = (canvas as any).viewportTransform as number[] | undefined;
+    if (!vpt || vpt.length < 6) {
+      setQuickAddPosition(null);
+      return;
+    }
+    // Overlap button with node so pointer stays over node until it hits the button (no gap = no disappear)
+    const overlapPx = 14;
+    const sx = node.getX() + node.width - overlapPx;
+    const sy = node.getY() + node.height / 2;
+    const vx = vpt[0] * sx + vpt[2] * sy + vpt[4];
+    const vy = vpt[1] * sx + vpt[3] * sy + vpt[5];
+    const wrapper = containerRef.current.querySelector(".canvas-container") as HTMLElement | null;
+    if (!wrapper) {
+      setQuickAddPosition({ left: vx, top: vy });
+      return;
+    }
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const cw = (canvas as any).width ?? wrapperRect.width;
+    const ch = (canvas as any).height ?? wrapperRect.height;
+    const scaleX = wrapperRect.width / cw;
+    const scaleY = wrapperRect.height / ch;
+    setQuickAddPosition({
+      left: wrapperRect.left - containerRect.left + vx * scaleX,
+      top: wrapperRect.top - containerRect.top + vy * scaleY,
+    });
+  }, [editor, hoveredNode]);
+
+  useEffect(() => {
+    if (!hoveredNode || !quickAddHelperEnabled) {
+      setQuickAddPosition(null);
+      return;
+    }
+    updateQuickAddPosition();
+    const canvas = editor?.canvas as fabric.Canvas;
+    if (!canvas) return;
+    const onRender = () => updateQuickAddPosition();
+    canvas.on("after:render", onRender);
+    return () => {
+      canvas.off("after:render", onRender);
+    };
+  }, [hoveredNode, quickAddHelperEnabled, updateQuickAddPosition, editor]);
+
+  useEffect(() => {
+    if (!quickAddMenuOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (quickAddOverlayRef.current?.contains(e.target as Node)) return;
+      setQuickAddMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [quickAddMenuOpen]);
 
   useLayoutEffect(() => {
     setTimeout(async () => {
@@ -133,7 +208,17 @@ export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, si
     canvas.on('mouse:down', (e) => {
       const selectedNode = e.target;
       onNodeSelect(selectedNode);
-    })
+    });
+
+    canvas.on("mouse:move", (e: any) => {
+      const target = e.target;
+      if (target && target instanceof SimulatorNode) {
+        setHoveredNode(target);
+      } else {
+        setHoveredNode(null);
+      }
+    });
+    // Don’t clear on canvas mouse:out — button overlaps node so we clear only when pointer leaves the overlay
   }
 
 
@@ -174,7 +259,22 @@ export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, si
 
   const createNodeCallback = useCallback(createNewNode, [editor]); // Dependency array includes editor and createNode
 
+  const addConnectedNode = useCallback((fromNode: SimulatorNode, newNodeType: SimulationNodeType) => {
+    const canvas = editor?.canvas as fabric.Canvas;
+    if (!canvas) return;
+    const offsetX = 80;
+    const x = fromNode.getX() + fromNode.width + offsetX;
+    const y = fromNode.getY();
+    const newNode = getNewNode(newNodeType, x, y, canvas);
+    if (newNode) {
+      addNodeToCanvas(newNode);
+      setNodes((prevNodes): any => [...prevNodes, newNode.getNodeInfo()]);
+      ConnectionManager.getInstance(canvas).createConnectionBetween(fromNode, newNode);
+    }
+  }, [editor]);
+
   useImperativeHandle(ref, () => ({
+    addConnectedNode,
     handleCreateClassicalHost: () => {
       createNodeCallback(SimulationNodeType.CLASSICAL_HOST, 50, 50);
     },
@@ -207,8 +307,13 @@ export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, si
     }
   }));
 
+  const canvas = editor?.canvas as fabric.Canvas | undefined;
+  const connectionManager = canvas ? ConnectionManager.getInstance(canvas) : null;
+  const compatibleTypes = hoveredNode && connectionManager ? getCompatibleNextNodeTypes(hoveredNode, connectionManager) : [];
+  const showQuickAddButton = quickAddHelperEnabled && hoveredNode && quickAddPosition != null && compatibleTypes.length > 0;
+
   return (
-    <div className="w-full h-full bg-slate-900 relative">
+    <div ref={containerRef} className="w-full h-full bg-slate-900 relative">
       {/* <canvas
         ref={canvasRef}
         className="w-full h-full"
@@ -226,6 +331,55 @@ export const NetworkCanvas = forwardRef(({ onNodeSelect, isSimulationRunning, si
       /> */}
 
       <FabricJSCanvas className="canvas-container w-full h-full" onReady={fabricRendered} />
+
+      {/* Quick-add connected node: floating button next to hovered node */}
+      {showQuickAddButton && quickAddPosition && (
+        <motion.div
+          ref={quickAddOverlayRef}
+          className="absolute z-10 pointer-events-none"
+          style={{ left: quickAddPosition.left, top: quickAddPosition.top, transform: "translateY(-50%)" }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.12 }}
+        >
+          <div
+            className="pointer-events-auto"
+            onPointerLeave={() => {
+              // Keep overlay (and hoveredNode) while dropdown is open so moving to menu doesn't hide it
+              if (!quickAddMenuOpen) setHoveredNode(null);
+            }}
+          >
+            <DropdownMenu open={quickAddMenuOpen} onOpenChange={setQuickAddMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="h-8 w-8 rounded-full shadow-lg border border-slate-500 bg-slate-700 hover:bg-slate-600 text-slate-100 [&_svg]:text-slate-100"
+                  title="Add connected node"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[160px]">
+                {compatibleTypes.map((nodeType) => (
+                  <DropdownMenuItem
+                    key={nodeType}
+                    onClick={() => {
+                      if (hoveredNode) {
+                        addConnectedNode(hoveredNode, nodeType);
+                        onQuickAddNodeAdded?.();
+                        setQuickAddMenuOpen(false);
+                      }
+                    }}
+                  >
+                    {getSimulationNodeTypeString(nodeType)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </motion.div>
+      )}
 
       {/* Overlay elements for interactive components */}
       <div className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur-sm p-2 rounded-md">

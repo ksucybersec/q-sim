@@ -15,7 +15,8 @@ import { NetworkManager } from "./network/networkManager"
 import { SimulatorConnection } from "./connections/line"
 import { ConnectionManager } from "./connections/connectionManager"
 import { cloneDeep } from "lodash"
-import { NodeFamily, SimulationNodeType } from "./base/enums"
+import { NodeFamily, SimulationNodeType, getSimulationNodeTypeString } from "./base/enums"
+import { getCompatibleNextNodeTypes } from "@/helpers/topologyHelper"
 import { ConnectionConfigPreset } from "@/services/apiResponse.interface"
 import api from "@/services/api"
 import { Button } from "../ui/button"
@@ -25,6 +26,7 @@ interface NodeDetailPanelProps {
   selectedNode: SimulatorNode | null
   updateNodeProperties?: (properties: Partial<SimulatorNode>) => void
   onSendMessage?: (source: string, target: string, message: string, protocol: string) => void
+  onAddConnectedNode?: (nodeType: SimulationNodeType) => void
   isSimulationRunning?: boolean
 }
 
@@ -32,6 +34,7 @@ export function NodeDetailPanel({
   selectedNode,
   updateNodeProperties = () => { },
   onSendMessage = () => { },
+  onAddConnectedNode,
   isSimulationRunning = false,
 }: NodeDetailPanelProps) {
   const [activeTab, setActiveTab] = useState("properties")
@@ -307,6 +310,30 @@ export function NodeDetailPanel({
                 </SelectContent>
               </Select>
             </div>
+
+            {onAddConnectedNode && (() => {
+              const connectionManager = ConnectionManager.getInstance();
+              const compatibleTypes = connectionManager ? getCompatibleNextNodeTypes(selectedNode, connectionManager) : [];
+              if (compatibleTypes.length === 0) return null;
+              return (
+                <div className="grid gap-2">
+                  <Label className="text-xs text-slate-400">Add connected node</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {compatibleTypes.map((nodeType) => (
+                      <Button
+                        key={nodeType}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => onAddConnectedNode(nodeType)}
+                      >
+                        {getSimulationNodeTypeString(nodeType)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <Separator />
 

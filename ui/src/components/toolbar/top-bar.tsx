@@ -10,7 +10,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronDown, RotateCcw, Beaker, Check, Bot, Pause, Play, User, LogOut } from "lucide-react"
+import { ChevronDown, RotateCcw, Beaker, Check, Bot, Pause, Play, User, LogOut, Link2 } from "lucide-react"
 import { downloadJson, exportToJSON } from "@/services/exportService"
 import api from "@/services/api"
 import { useEffect, useState } from "react"
@@ -27,9 +27,11 @@ interface TopBarProps {
   completedLabs?: string[]
   simulationStateUpdateCount: any
   updateLabProgress: (completed: number, total: number) => void
-  onOpenAIPanel?: () => void,
+  onOpenAIPanel?: () => void
   isRunning: boolean
   toggleSimulation: () => void
+  quickAddHelperEnabled?: boolean
+  onQuickAddHelperChange?: (enabled: boolean) => void
 }
 
 export function TopBar({
@@ -40,6 +42,8 @@ export function TopBar({
   onOpenAIPanel = () => { },
   isRunning,
   toggleSimulation,
+  quickAddHelperEnabled = true,
+  onQuickAddHelperChange,
 }: TopBarProps
 ) {
   const [isAIEnabled, setIsAIEnabled] = useState(false)
@@ -182,6 +186,19 @@ export function TopBar({
         </div>
 
         <div className="flex items-center gap-2">
+          {onQuickAddHelperChange != null && (
+            <ClickEventButton elementType="Quick add helper toggle" elementDescription={quickAddHelperEnabled ? "Disable quick add connected node" : "Enable quick add connected node"}>
+              <Button
+                variant={quickAddHelperEnabled ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => onQuickAddHelperChange(!quickAddHelperEnabled)}
+              >
+                <Link2 className="h-4 w-4" />
+                <span className="hidden sm:inline text-xs">Quick add</span>
+              </Button>
+            </ClickEventButton>
+          )}
           <ClickEventButton elementType="Simulation Button" elementDescription={isRunning ? "Stop Simulation" : "Start Simulation"}
             eventType={isRunning ? UserEventType.SIMULATION_COMPLETE : UserEventType.SIMULATION_START}>
             <Button size="sm" className="h-8 gap-1" onClick={toggleSimulation} variant={isRunning ? "destructive" : "secondary"}>

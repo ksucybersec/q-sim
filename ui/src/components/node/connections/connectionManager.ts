@@ -37,6 +37,12 @@ export class ConnectionManager {
         return nodes.map(x => x.name).sort((a, b) => a > b ? 1 : -1).join('__')
     }
 
+    /** Returns the connection line between two nodes, or null if none. Used e.g. for path highlight in animations. */
+    getConnection(from: SimulatorNode, to: SimulatorNode): SimulatorConnection | null {
+        const lineId = this.getLineId(from, to);
+        return this.connectionStore.get(lineId) ?? null;
+    }
+
     updateMetaData(from: SimulatorNode, to: SimulatorNode, metaData: Partial<LineMetaData>) {
         const lineId = this.getLineId(from, to);
         if (!this.connectionStore.has(lineId)) {
@@ -94,6 +100,28 @@ export class ConnectionManager {
                 }
             }
         })
+    }
+
+    /**
+     * Creates a connection between two nodes programmatically (e.g. for "add connected node" helper).
+     * No-op if a connection already exists. Reuses onConnection for NetworkManager and adapter assignment.
+     */
+    createConnectionBetween(from: SimulatorNode, to: SimulatorNode): void {
+        if (from === to) return;
+        const lineId = this.getLineId(from, to);
+        if (this.connectionStore.has(lineId)) return;
+
+        const x1 = from.getX() + from.width / 2;
+        const y1 = from.getY() + from.height / 2;
+        const x2 = to.getX() + to.width / 2;
+        const y2 = to.getY() + to.height / 2;
+        const line = new SimulatorConnection(
+            [x1, y1, x2, y2],
+            { from, connectionType: getNodeFamily(from.nodeType) },
+            { stroke: 'black' }
+        );
+        this.canvas.add(line);
+        this.onConnection(line, from, to);
     }
 
     onConnection(line: SimulatorConnection, from: SimulatorNode, to: SimulatorNode) {
