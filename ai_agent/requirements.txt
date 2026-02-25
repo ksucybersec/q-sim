@@ -4,4 +4,5 @@ pytest==8.3.5
 pydantic-settings==2.8.1
 pytest-asyncio==0.26.0
 redisvl<=0.5.2
+instructor>=1.14.3
 # langchain-redis==0.2.0

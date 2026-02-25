@@ -2,7 +2,7 @@
 # Simulator requirements
 matplotlib==3.9.4
 networkx==3.4.2
-qutip==5.0.4
+qutip==5.2.3
 
 # Server requirements
 fastapi[standard]==0.115.12
