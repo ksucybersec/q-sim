@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CheckCircle2, XCircle, Clock, Beaker, ArrowRight, Award, Code } from "lucide-react"
-import { EXERCISES } from "./exercise "
+import { EXERCISES } from "./exercise"
 import { exportToJSON } from "@/services/exportService"
 import { getLogger } from "@/helpers/simLogger"
 import { manager } from "../node/nodeManager"
@@ -19,6 +19,7 @@ import Markdown from "react-markdown"
 import { ClickEventButton } from "@/helpers/components/butonEvent/clickEvent"
 import { UserEventType } from "@/helpers/userEvents/userEvents.enums"
 import { sendLabCompletedEvent, sendLabProgressEvent } from "@/helpers/userEvents/userEvents"
+import { getParamsLabId } from "../toolbar/utils"
 
 interface LabPanelProps {
   isOpen: boolean
@@ -94,6 +95,13 @@ export function LabPanel({ isOpen, onClose, onStartLab, simulationState, updateL
     const completed = nodesExist && connectionsExist && messagesSent;
     return completed;
   }
+
+  useEffect(() => {
+    const labIdToOpen = getParamsLabId();
+    if (labIdToOpen && EXERCISES.find((ex) => ex.id === labIdToOpen)) {
+      setSelectedLab(labIdToOpen);
+    }
+  }, []);
 
   useEffect(() => {
     if (activeLab && checkLabCompletion(activeLab)) {

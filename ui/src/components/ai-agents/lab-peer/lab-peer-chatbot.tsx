@@ -11,7 +11,7 @@ import { ChatRequestI, LabPeerAgentInput, LabPeerAgentOutput } from "../message.
 import { uniqueId } from "lodash"
 import { AgentID, AgentTask } from "../agent-declaration"
 import api from "@/services/api"
-import { ExerciseI } from "@/components/labs/exercise /exercise"
+import { ExerciseI } from "@/components/labs/exercise/exercise"
 import { exportToJSON } from "@/services/exportService"
 import { ClickEventButton } from "@/helpers/components/butonEvent/clickEvent"
 import { UserEventType } from "@/helpers/userEvents/userEvents.enums"

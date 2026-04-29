@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Progress } from "@/components/ui/progress"
 import { Beaker, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react"
 import { getSimulationNodeTypeString } from "../node/base/enums"
-import { ExerciseI } from "./exercise /exercise"
+import { ExerciseI } from "./exercise/exercise"
 
 interface ActiveLabIndicatorProps {
   activeLab: ExerciseI | null
