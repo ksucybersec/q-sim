@@ -16,11 +16,12 @@ import api from "@/services/api"
 import { useEffect, useState } from "react"
 import { LabPanel } from "../labs/lab-panel"
 import { Badge } from "../ui/badge"
-import { EXERCISES } from "../labs/exercise "
+import { EXERCISES } from "../labs/exercise"
 import { ExportDataI } from "@/services/export.interface"
 import simulationState from "@/helpers/utils/simulationState"
 import { ClickEventButton } from "@/helpers/components/butonEvent/clickEvent"
 import { UserEventType } from "@/helpers/userEvents/userEvents.enums"
+import { getParamsLabId } from "./utils"
 
 interface TopBarProps {
   onStartLab?: (labId: string | null) => void
@@ -54,6 +55,10 @@ export function TopBar({
     api.getConfig().then((config) => {
       setIsAIEnabled(config.enable_ai_feature);
     })
+    const labIdToOpen = getParamsLabId();
+    if (labIdToOpen) {
+      setIsAIEnabled(true);
+    }
   }, [])
 
   const fetchSavedTopologies = async () => {

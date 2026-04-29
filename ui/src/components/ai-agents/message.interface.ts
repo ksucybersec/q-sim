@@ -1,5 +1,5 @@
 import { ExportDataI } from "@/services/export.interface";
-import { ExerciseI } from "../labs/exercise /exercise";
+import { ExerciseI } from "../labs/exercise/exercise";
 import { AgentID, AgentTask } from "./agent-declaration";
 import { AgentResponse } from "./agent_response";
 

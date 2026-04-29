@@ -13,7 +13,7 @@ import { Send, Plus, Atom, Zap } from "lucide-react"
 // Monaco Editor imports
 import { Editor, Monaco } from "@monaco-editor/react"
 import { editor, Range } from 'monaco-editor';
-import { ExerciseI } from "../labs/exercise /exercise"
+import { ExerciseI } from "../labs/exercise/exercise"
 import api from "@/services/api"
 import { AgentID } from "../ai-agents/agent-declaration"
 import { LabAssistantRequest } from "../ai-agents/message.interface"
